@@ -1,9 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "DriverNet"
 version = "0.1.0"
 description = "A deep learning pipeline for detecting driver distraction."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "kaggle>=1.7.4.5",
     "lightning>=2.5.5",
@@ -19,3 +23,6 @@ dependencies = [
     "torchvision>=0.23.0",
     "tqdm>=4.67.1",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]

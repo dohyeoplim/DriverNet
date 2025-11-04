@@ -5,10 +5,17 @@ Distracted Driver Detection using Deep Learning.
 [Dataset](https://www.kaggle.com/competitions/state-farm-distracted-driver-detection/data) is sourced from Kaggle.
 
 #### 0. Prerequisites
-- Python 3.9+
+- Python 3.10+
 - `uv`: [Install UV](https://docs.astral.sh/uv/getting-started/installation/)
 
-#### 1. Download Dataset
+#### 1. Create Venv & Install Dependencies
+
+```bash
+uv venv
+uv sync
+```
+
+#### 2. Download Dataset
 
 ```bash
 uv run main.py --download-dataset
