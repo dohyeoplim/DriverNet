@@ -23,3 +23,8 @@ uv run main.py --download-dataset
 
 - Note: Download requires Kaggle API credentials. Refer to [Kaggle API Documentation](https://www.kaggle.com/docs/api) for more details.
 - Place `kaggle.json` in `~/.kaggle/` directory (in the home directory).
+
+> Checking Dataset & Data Module
+> ```bash
+> uv run scripts/test_datamodule.py
+> ```
