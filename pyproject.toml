@@ -1,5 +1,5 @@
 [project]
-name = "distracted-driver-detection-challenge"
+name = "DriverNet"
 version = "0.1.0"
 description = "A deep learning pipeline for detecting driver distraction."
 readme = "README.md"
