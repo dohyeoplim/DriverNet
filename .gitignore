@@ -239,6 +239,7 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,visualstudiocode,jupyternotebooks
 
 input/*
+output/*
 data/*
 .vscode
 lightning_logs

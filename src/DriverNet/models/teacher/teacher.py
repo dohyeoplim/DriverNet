@@ -25,6 +25,18 @@ class Teacher(L.LightningModule):
         self.log("val_loss", loss)
         return loss
 
+    def test_step(self, batch, batch_idx):
+        x, y = batch["pixel_values"], batch["labels"]
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.log("test_loss", loss)
+        return loss
+
+    def predict_step(self, batch, batch_idx):
+        x = batch["pixel_values"]
+        y_hat = self(x)
+        return F.softmax(y_hat, dim=1)
+
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
         return optimizer

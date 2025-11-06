@@ -27,3 +27,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[project.scripts]
+check-data = "scripts.test_datamodule:main"
+test-teacher = "scripts.test_teacher_model:main"

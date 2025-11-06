@@ -19,9 +19,10 @@ class DriverDataset(Dataset):
         self,
         dataframe: pd.DataFrame,
         root_dir: str | Path,
-        class_to_idx: Dict[str, int],
+        class_to_idx: Optional[Dict[str, int]] = None,
         transform: Optional[transforms.Compose] = None,
         flip_p: float = 0.5,
+        is_test: bool = False,
     ):
         super().__init__()
         self.df = dataframe.reset_index(drop=True)
@@ -29,21 +30,28 @@ class DriverDataset(Dataset):
         self.class_to_idx = class_to_idx
         self.transform = transform
         self.flip_p = float(flip_p)
+        self.is_test = is_test
 
     def __len__(self) -> int:
         return len(self.df)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         row = self.df.iloc[idx]
-        img_path = self.root_dir / row["classname"] / row["img"]
+        img_name = row["img"]
+        img_path = self.root_dir / img_name
 
         image = Image.open(img_path).convert("RGB")
-        label = self.class_to_idx[row["classname"]]
 
         if self.transform is not None:
             image = self.transform(image)
 
         assert isinstance(image, torch.Tensor)
+
+        if self.is_test:
+            return {"pixel_values": image, "img_name": img_name}
+
+        assert self.class_to_idx is not None
+        label = self.class_to_idx[row["classname"]]
 
         if random.random() < self.flip_p:
             image = torch.flip(image, dims=[2])
