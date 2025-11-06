@@ -26,5 +26,5 @@ uv run main.py --download-dataset
 
 > Checking Dataset & Data Module
 > ```bash
-> uv run scripts/test_datamodule.py
+> uv run check-data
 > ```
