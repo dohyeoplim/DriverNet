@@ -29,5 +29,6 @@ dependencies = [
 where = ["."]
 
 [project.scripts]
+download-data = "scripts.download_data:main"
 check-data = "scripts.test_datamodule:main"
 test-teacher = "scripts.test_teacher_model:main"
