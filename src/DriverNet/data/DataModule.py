@@ -3,26 +3,30 @@ from pathlib import Path
 from typing import Dict, Optional
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-import pytorch_lightning as L
+import lightning as L
 from src.DriverNet.data.Transforms import DriverTransforms
 from src.DriverNet.data.Dataset import DriverDataset
 
 class DriverDataModule(L.LightningDataModule):
     def __init__(
         self,
-        data_dir: str = "./input/imgs/train",
-        csv_path: Optional[str] = None,
-        batch_size: int = 64,
-        num_workers: int = 4,
-        image_size: int = 224,
-        flip_p: float = 0.1,
-        test_split: float = 0.15,
+        data_dir: str,
+        csv_path: Optional[str],
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        pin_memory: bool,
+        image_size: int,
+        flip_p: float,
+        test_split: float,
     ):
         super().__init__()
         self.data_dir = Path(data_dir)
         self.csv_path = csv_path
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.persistent_workers = persistent_workers
+        self.pin_memory = pin_memory
         self.image_size = image_size
         self.flip_p = flip_p
         self.test_split = test_split
@@ -87,7 +91,8 @@ class DriverDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -97,5 +102,6 @@ class DriverDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
         )

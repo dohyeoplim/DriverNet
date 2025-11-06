@@ -1,3 +1,4 @@
+import torch.nn as nn
 from torchvision.models.vision_transformer import VisionTransformer
 from torchvision.models import (
     vit_b_16, vit_b_16, vit_b_32, vit_l_16, vit_l_32,
@@ -28,9 +29,10 @@ def load_vit(
         "vit_l_32": vit_l_32,
     }[model_name]
 
-    model = ctor(weights=weights, num_classes=num_classes)
+    model = ctor(weights=weights)
 
-    # in_features = model.heads.head.in_features
-    # model.heads.head = nn.Linear(in_features, num_classes)
+    assert isinstance(model.heads.head, nn.Linear)
+    in_features = model.heads.head.in_features
+    model.heads.head = nn.Linear(in_features, num_classes)
 
     return model
