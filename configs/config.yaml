@@ -12,10 +12,10 @@ model:
 data:
     data_dir: "./input/imgs/train"
     csv_path: "./input/driver_imgs_list.csv"
-    batch_size: 32
+    batch_size: 128
     num_workers: 4
-    pin_memory: False
+    pin_memory: True
     persistent_workers: True
     image_size: 224
-    flip_p: 0.1
+    flip_p: 0.2
     test_split: 0.15
