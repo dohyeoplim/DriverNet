@@ -18,7 +18,7 @@ uv sync
 #### 2. Download Dataset
 
 ```bash
-uv run main.py --download-dataset
+uv run download-data
 ```
 
 - Note: Download requires Kaggle API credentials. Refer to [Kaggle API Documentation](https://www.kaggle.com/docs/api) for more details.
