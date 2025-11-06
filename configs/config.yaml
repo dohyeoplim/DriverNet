@@ -1,0 +1,21 @@
+trainer:
+    max_epochs: 20
+    accelerator: auto
+    devices: auto
+
+model:
+    teacher:
+        name: "vit_b_16"
+        num_classes: 10
+        pretrained: true
+
+data:
+    data_dir: "./input/imgs/train"
+    csv_path: null
+    batch_size: 32
+    num_workers: 4
+    pin_memory: False
+    persistent_workers: True
+    image_size: 224
+    flip_p: 0.1
+    test_split: 0.15
