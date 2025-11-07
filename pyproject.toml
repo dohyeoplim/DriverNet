@@ -49,5 +49,5 @@ dev = [
 [project.scripts]
 download-data = "scripts.download_data:main"
 check-data = "scripts.test_datamodule:main"
-preprocess-data = "scripts.preprocess_data:main"
+batch-preprocess-data = "scripts.preprocess.run_batch:main"
 test-teacher = "scripts.test_teacher_model:main"

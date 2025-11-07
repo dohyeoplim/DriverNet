@@ -13,8 +13,8 @@ def main():
     parser.add_argument("-o", "--output_dir", required=True, help="Directory to save processed masks.")
     parser.add_argument("--smooth_k", type=int, default=5)
     parser.add_argument("--feather_k", type=int, default=15)
-    parser.add_argument("--bg_blur_k", type=int, default=0)
-    parser.add_argument("--bg_darken_factor", type=float, default=1.0)
+    parser.add_argument("--bg_blur_k", type=int, default=25)
+    parser.add_argument("--bg_darken_factor", type=float, default=0.5)
     args = parser.parse_args()
 
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda" if torch.cuda.is_available() else "cpu")
