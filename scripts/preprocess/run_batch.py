@@ -15,8 +15,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     class_dirs = [d for d in sorted(data_dir.glob("c*")) if d.is_dir()]
-    # device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     detector_processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
     detector = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
