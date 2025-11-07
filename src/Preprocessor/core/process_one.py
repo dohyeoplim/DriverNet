@@ -39,10 +39,10 @@ def process_one_image(
     processed_image = apply_background_effects(cv_image_rgb, alpha_mask, bg_blur_k, bg_darken_factor)
 
     base = os.path.splitext(os.path.basename(image_path))[0]
-    mask_path = os.path.join(out_dir, f"{base}_mask.png")
+    # mask_path = os.path.join(out_dir, f"{base}_mask.png")
     final_image_path = os.path.join(out_dir, f"{base}_processed.png")
 
-    cv2.imwrite(mask_path, alpha_mask)
+    # cv2.imwrite(mask_path, alpha_mask)
     cv2.imwrite(final_image_path, cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR))
 
-    return {"ok": True, "mask": mask_path, "processed_image": final_image_path}
+    return {"ok": True, "processed_image": final_image_path}
