@@ -471,6 +471,7 @@ name = "drivernet"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "finetuning-scheduler" },
     { name = "kaggle" },
     { name = "lightning" },
     { name = "matplotlib" },
@@ -491,6 +492,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "finetuning-scheduler", specifier = ">=2.9.0" },
     { name = "kaggle", specifier = ">=1.7.4.5" },
     { name = "lightning", specifier = ">=2.5.5" },
     { name = "matplotlib", specifier = ">=3.9.4" },
@@ -515,6 +517,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/46/0028a82567109b5ef6e4d2a1f04a583fb513e6cf9527fcdd09afd817deeb/filelock-3.20.0.tar.gz", hash = "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4", size = 18922, upload-time = "2025-10-08T18:03:50.056Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/91/7216b27286936c16f5b4d0c530087e4a54eead683e6b0b73dd0c64844af6/filelock-3.20.0-py3-none-any.whl", hash = "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2", size = 16054, upload-time = "2025-10-08T18:03:48.35Z" },
+]
+
+[[package]]
+name = "finetuning-scheduler"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "lightning" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/65/7a9424585fb8dabfed3d4d68ddba161ea435c4fe0e969c8eae617135975f/finetuning_scheduler-2.9.0.tar.gz", hash = "sha256:ff70ad98fc7d078ac73d14a2085846f4b2e5e20e517838caec8c7acc151fe08f", size = 127588, upload-time = "2025-10-20T22:13:31.854Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/02/15b6ad27067a216ec76559f378a91d8a6cc1eb1b6ddc414029a8c7c82eba/finetuning_scheduler-2.9.0-py3-none-any.whl", hash = "sha256:dd8950c5fe24c5c1637bbafcfd3d596301601ec92b669f1bef3038cbcf12284b", size = 137775, upload-time = "2025-10-20T22:13:30.074Z" },
 ]
 
 [[package]]
