@@ -31,6 +31,7 @@ dependencies = [
     "segment-anything",
     "transformers>=4.57.1",
     "ultralytics>=8.3.225",
+    "timm>=1.0.22",
 ]
 
 [tool.setuptools.packages.find]
@@ -42,9 +43,11 @@ segment-anything = { git = "https://github.com/facebookresearch/segment-anything
 [dependency-groups]
 dev = [
     "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
 ]
 
 [project.scripts]
 download-data = "scripts.download_data:main"
 check-data = "scripts.test_datamodule:main"
+preprocess-data = "scripts.preprocess_data:main"
 test-teacher = "scripts.test_teacher_model:main"
