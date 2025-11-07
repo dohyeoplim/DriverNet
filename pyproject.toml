@@ -26,10 +26,22 @@ dependencies = [
     "matplotlib-inline>=0.2.1",
     "finetuning-scheduler>=2.9.0",
     "cloud-tpu-client>=0.10",
+    "opencv-python>=4.11.0.86",
+    "pillow>=12.0.0",
+    "segment-anything",
+    "transformers>=4.57.1",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.uv.sources]
+segment-anything = { git = "https://github.com/facebookresearch/segment-anything.git" }
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.1.0",
+]
 
 [project.scripts]
 download-data = "scripts.download_data:main"
