@@ -38,7 +38,8 @@ class DriverDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         row = self.df.iloc[idx]
         img_name = row["img"]
-        img_path = self.root_dir / img_name
+        class_name = row["classname"] if "classname" in row else ""
+        img_path = self.root_dir / class_name / img_name
 
         image = Image.open(img_path).convert("RGB")
 
