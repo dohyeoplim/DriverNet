@@ -18,10 +18,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     detector_processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
-    detector = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50").to(device)
+    detector = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50").to(device) # pyright: ignore[reportArgumentType]
 
     sam_processor = SamProcessor.from_pretrained("facebook/sam-vit-base")
-    sam_model = SamModel.from_pretrained("facebook/sam-vit-base").to(device)
+    sam_model = SamModel.from_pretrained("facebook/sam-vit-base").to(device) # pyright: ignore[reportArgumentType]
 
     rows = []
     all_images = [(cdir, img) for cdir in class_dirs for img in cdir.glob("*.jpg")]
