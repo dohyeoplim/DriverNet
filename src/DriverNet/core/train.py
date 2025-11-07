@@ -4,8 +4,10 @@ from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from finetuning_scheduler import FinetuningScheduler
 from finetuning_scheduler.fts_supporters import FTSEarlyStopping, FTSCheckpoint
+import torch
 
 def train(what: str) -> None:
+    torch.set_float32_matmul_precision('high')
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
