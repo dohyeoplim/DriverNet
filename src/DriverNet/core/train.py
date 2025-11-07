@@ -10,7 +10,7 @@ def train(what: str) -> None:
 
     if what == "teacher":
         model = Teacher(**cfg.model.teacher)
-        trainer = L.Trainer(**cfg.trainer, callbacks=[FinetuningScheduler(**cfg.finetuning_scheduler)])
+        trainer = L.Trainer(**cfg.trainer, callbacks=[FinetuningScheduler()])
         trainer.ckpt_path = "output/teacher/checkpoints/best.ckpt"
         dm = DriverDataModule(**cfg.data)
         trainer.fit(model, datamodule=dm)
