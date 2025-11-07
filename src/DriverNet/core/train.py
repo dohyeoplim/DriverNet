@@ -3,6 +3,7 @@ from omegaconf import OmegaConf, DictConfig
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from finetuning_scheduler import FinetuningScheduler
+from finetuning_scheduler.fts_supporters import FTSEarlyStopping, FTSCheckpoint
 
 def train(what: str) -> None:
     cfg = OmegaConf.load("configs/config.yaml")
@@ -10,7 +11,12 @@ def train(what: str) -> None:
 
     if what == "teacher":
         model = Teacher(**cfg.model.teacher)
-        trainer = L.Trainer(**cfg.trainer, callbacks=[FinetuningScheduler()])
+        callbacks = [
+            FinetuningScheduler(),
+            FTSEarlyStopping(monitor="val_acc", mode="max"),
+            FTSCheckpoint(monitor="val_acc", mode="max", save_top_k=1, verbose=True, filename='best-{epoch:02d}-{val_acc:.4f}')
+        ]
+        trainer = L.Trainer(**cfg.trainer, callbacks=callbacks)
         # trainer.ckpt_path = "output/teacher/checkpoints/best.ckpt"
         dm = DriverDataModule(**cfg.data)
         trainer.fit(model, datamodule=dm)
