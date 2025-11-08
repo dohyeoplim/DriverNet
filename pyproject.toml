@@ -32,6 +32,7 @@ dependencies = [
     "transformers>=4.57.1",
     "ultralytics>=8.3.225",
     "timm>=1.0.22",
+    "wandb>=0.22.3",
 ]
 
 [tool.setuptools.packages.find]
