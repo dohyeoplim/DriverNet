@@ -3,7 +3,7 @@ from omegaconf import OmegaConf, DictConfig
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
-from DriverNet.utils.logger import wandb_logger
+from src.DriverNet.utils.logger import wandb_logger
 from finetuning_scheduler import FinetuningScheduler
 from finetuning_scheduler.fts_supporters import FTSEarlyStopping, FTSCheckpoint
 
