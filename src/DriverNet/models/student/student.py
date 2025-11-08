@@ -10,14 +10,13 @@ from typing import Literal
 class Student(L.LightningModule):
     def __init__(
             self,
-            name: str = "resnet50",
-            num_classes: int = 10,
-            pretrained: bool = True,
-            lr: float = 3e-4,
-            weight_decay: float = 5e-2,
-            label_smoothing: float = 0.05,
-            scheduler: Literal["onecycle", "cosine", "none"] = "onecycle",
-            max_epochs: int = 30,
+            name: str,
+            num_classes: int,
+            pretrained: bool,
+            lr: float,
+            weight_decay: float,
+            label_smoothing: float,
+            scheduler: Literal["onecycle", "cosine", "none"],
         ):
         super().__init__()
         self.save_hyperparameters()
@@ -31,7 +30,6 @@ class Student(L.LightningModule):
         self.weight_decay: float = weight_decay
         self.label_smoothing: float = label_smoothing
         self.scheduler_name: Literal["onecycle", "cosine", "none"] = scheduler
-        self.max_epochs: int = max_epochs
 
         self.criterion: nn.Module = nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
         self.train_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
