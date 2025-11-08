@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import torch
+torch.backends.cudnn.conv.fp32_precision = 'tf32'
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
@@ -10,7 +11,6 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 def main():
-    torch.set_float32_matmul_precision('high')
 
     args = parse_args()
     if args.download_dataset:
