@@ -244,3 +244,4 @@ data/*
 .vscode
 lightning_logs
 wandb/
+*.ckpt
