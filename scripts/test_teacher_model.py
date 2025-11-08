@@ -20,7 +20,7 @@ def main():
 
     dm.setup(stage="test")
 
-    raw_predictions = trainer.predict(model, dataloaders=dm.test_dataloader())
+    raw_predictions = trainer.predict(model, dataloaders=dm)
     assert raw_predictions is not None
 
     predictions_list = cast(List[torch.Tensor], raw_predictions)
@@ -29,7 +29,7 @@ def main():
     all_preds_np = all_preds_tensor.cpu().numpy()
 
     img_names = []
-    for batch in dm.test_dataloader():
+    for batch in dm.predict_dataloader():
         img_names.extend(batch["img_name"])
 
     num_classes_layer = model.model.heads.head

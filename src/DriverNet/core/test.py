@@ -3,30 +3,27 @@ from omegaconf import OmegaConf, DictConfig
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
+from src.DriverNet.utils.submission import create_submission
 
 def test(what: str) -> None:
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
+    if what == "teacher":
+        model = Teacher(**cfg.model.teacher)
+    elif what == "student":
+        model = Student(**cfg.model.student)
+    else:
+        raise ValueError(f"Unknown model type: {what!r}")
+
     test_data_dir = "./input/imgs/test"
 
     dm = DriverDataModule(**cfg.data, test_dir=test_data_dir)
-    model = Teacher(**cfg.model.teacher)
-    trainer = L.Trainer(**cfg.trainer)
 
     dm.setup(stage="test")
 
-    if what == "teacher":
-        model = Teacher(**cfg.model.teacher)
-        trainer = L.Trainer(**cfg.trainer)
-        dm = DriverDataModule(**cfg.data)
-        trainer.test(model, datamodule=dm)
+    trainer = L.Trainer(**cfg.trainer)
 
-    elif what == "student":
-        model = Student(**cfg.model.student)
-        trainer = L.Trainer(**cfg.trainer)
-        dm = DriverDataModule(**cfg.data)
-        trainer.test(model, datamodule=dm)
+    outputs = trainer.predict(model, datamodule=dm)
 
-    else:
-        raise ValueError(f"Unknown model type: {what}")
+    create_submission(outputs, "./output/submission.csv")

@@ -1,7 +1,14 @@
 import pandas as pd
+import torch
+from src.DriverNet.data.DataModule import DriverDataModule
+from typing import Any
 
-def create_submission(predictions: list, submission_path: str) -> None:
-    num_classes = len(predictions[0])
-    submission_df = pd.DataFrame(predictions, columns=[f'c{i}' for i in range(num_classes)])
-    submission_df.insert(0, 'img', [f'img_{i}.jpg' for i in range(len(predictions))])
-    submission_df.to_csv(submission_path, index=False)
+def create_submission(outputs, path="submission.csv"):
+    preds = torch.cat([o["preds"] for o in outputs], dim=0).cpu().numpy()
+    names = sum([o["img_name"] for o in outputs], [])
+    assert len(names) == preds.shape[0], "Mismatch between names and predictions."
+
+    df = pd.DataFrame(preds, columns=[f"c{i}" for i in range(preds.shape[1])])
+    df.insert(0, "img", names)
+    df.to_csv(path, index=False)
+    print(f"✅ Saved submission: {path} ({len(df)} rows)")

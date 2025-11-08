@@ -125,7 +125,7 @@ class DriverDataModule(L.LightningDataModule):
             persistent_workers=self.persistent_workers,
         )
 
-    def test_dataloader(self) -> DataLoader:
+    def predict_dataloader(self) -> DataLoader:
         assert self.test_ds is not None
         return DataLoader(
             self.test_ds,
@@ -135,3 +135,7 @@ class DriverDataModule(L.LightningDataModule):
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
         )
+
+    def get_test_image_names(self) -> list[str]:
+        assert self.test_ds is not None, "Call setup(stage='test') first."
+        return list(self.test_ds.dataframe["img_name"]) # type: ignore[attr-defined]

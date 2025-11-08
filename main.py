@@ -6,6 +6,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
     p.add_argument("--download-dataset", action="store_true", help="Download dataset from Kaggle")
     p.add_argument("--train", choices=["teacher", "student"], help="Train [teacher/student] model")
+    p.add_argument("--test", choices=["teacher", "student"], help="Test [teacher/student] model")
     return p.parse_args()
 
 def main():
@@ -22,6 +23,11 @@ def main():
     if args.train:
         from src.DriverNet.core.train import train
         train(args.train)
+        return
+
+    if args.test:
+        from src.DriverNet.core.test import test
+        test(args.test)
         return
 
 if __name__ == "__main__":

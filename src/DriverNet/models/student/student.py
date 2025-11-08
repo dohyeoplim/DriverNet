@@ -69,9 +69,11 @@ class Student(L.LightningModule):
         self.log("test/acc", self.test_acc.compute(), on_epoch=True)
         self.test_acc.reset()
 
-    def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        logits = self(batch["pixel_values"])
-        return F.softmax(logits, dim=-1)
+    def predict_step(self, batch, batch_idx):
+        x = batch["pixel_values"]
+        y_hat = self(x)
+        probs = F.softmax(y_hat, dim=1)
+        return {"preds": probs, "img_name": batch["img_name"]}
 
     def configure_optimizers(self):
         opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
