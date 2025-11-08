@@ -1,4 +1,5 @@
 import lightning as L
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
@@ -40,12 +41,31 @@ class Student(L.LightningModule):
         return self.model(x)
 
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
-        x, y = batch["pixel_values"], batch["labels"]
-        logits = self(x)
-        loss = self.criterion(logits, y)
-        probs = F.softmax(logits, dim=-1)
-        metric.update(probs, y)
-        self.log(f"{prefix}/loss", loss, on_step=True if prefix == "train" else False, on_epoch=True, prog_bar=(prefix != "test"))
+        x0 = batch["pixel_values"]
+        y = batch["labels"]
+
+        logit0 = self(x0)
+        ce0 = self.criterion(logit0, y)
+
+        x1 = batch.get("pixel_values_proc")
+        if x1 is not None:
+            logit1 = self(x1)
+            ce1 = self.criterion(logit1, y)
+
+            with torch.no_grad():
+                p0 = logit0.softmax(-1)
+                p1 = logit1.softmax(-1)
+
+            cons = 0.5 * (F.kl_div(logit0.log_softmax(-1), p1, reduction="batchmean") + F.kl_div(logit1.log_softmax(-1), p0, reduction="batchmean"))
+            loss = ce0 + ce1 + 0.5 * cons
+            probs_for_metric = 0.5 * (p0 + p1)
+        else:
+            loss = ce0
+            probs_for_metric = logit0.softmax(-1)
+
+        metric.update(probs_for_metric, y)
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
+
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -62,12 +82,12 @@ class Student(L.LightningModule):
         self.log("val/acc", self.val_acc.compute(), on_epoch=True, prog_bar=True)
         self.val_acc.reset()
 
-    def test_step(self, batch, batch_idx):
-        self._step(batch, self.test_acc, "test")
+    # def test_step(self, batch, batch_idx):
+    #     self._step(batch, self.test_acc, "test")
 
-    def on_test_epoch_end(self):
-        self.log("test/acc", self.test_acc.compute(), on_epoch=True)
-        self.test_acc.reset()
+    # def on_test_epoch_end(self):
+    #     self.log("test/acc", self.test_acc.compute(), on_epoch=True)
+    #     self.test_acc.reset()
 
     def predict_step(self, batch, batch_idx):
         x = batch["pixel_values"]

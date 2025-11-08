@@ -24,7 +24,8 @@ model:
         scheduler: "onecycle"
 
 data:
-    data_dir: "input/imgs/train"
+    original_data_dir: "input/original/train"
+    processed_data_dir: "input/processed/train"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 128
     num_workers: 4

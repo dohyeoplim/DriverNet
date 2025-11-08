@@ -1,7 +1,5 @@
 import argparse
 from pathlib import Path
-import torch
-torch.backends.cudnn.conv.fp32_precision = 'tf32'
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
