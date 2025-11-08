@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, LRScheduler
 from torchmetrics.classification import MulticlassAccuracy
 
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
@@ -17,7 +18,7 @@ class Student(L.LightningModule):
             lr: float,
             weight_decay: float,
             label_smoothing: float,
-            scheduler: Literal["onecycle", "cosine", "none"],
+            scheduler: Literal["onecycle", "none"],
         ):
         super().__init__()
         self.save_hyperparameters()
@@ -30,7 +31,7 @@ class Student(L.LightningModule):
         self.lr: float = lr
         self.weight_decay: float = weight_decay
         self.label_smoothing: float = label_smoothing
-        self.scheduler_name: Literal["onecycle", "cosine", "none"] = scheduler
+        self.scheduler_name: Literal["onecycle", "none"] = scheduler
 
         self.criterion: nn.Module = nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
         self.train_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
@@ -97,4 +98,25 @@ class Student(L.LightningModule):
 
     def configure_optimizers(self):
         opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        if self.scheduler_name == "none":
+            return opt
+
+        if self.scheduler_name == "onecycle":
+            if self.trainer is None:
+                raise RuntimeError("Trainer not attached; OneCycle needs total steps.")
+                
+            total_steps = int(self.trainer.estimated_stepping_batches)
+
+            sched: LRScheduler = OneCycleLR(
+                opt,
+                max_lr=self.lr,
+                total_steps=max(1, total_steps),
+                pct_start=0.1,
+                div_factor=25.0,
+                final_div_factor=1e4,
+                anneal_strategy="cos",
+            )
+            return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}
+
         return opt
