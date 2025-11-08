@@ -3,6 +3,7 @@ from omegaconf import OmegaConf, DictConfig
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
+from src.DriverNet.utils.wandb.logger import wandb_logger
 from finetuning_scheduler import FinetuningScheduler
 from finetuning_scheduler.fts_supporters import FTSEarlyStopping, FTSCheckpoint
 
@@ -17,13 +18,13 @@ def train(what: str) -> None:
             FTSEarlyStopping(monitor="val_acc", mode="max"),
             FTSCheckpoint(monitor="val_acc", mode="max", save_top_k=1, verbose=True, filename='best-{epoch:02d}-{val_acc:.4f}')
         ]
-        trainer = L.Trainer(**cfg.trainer, callbacks=callbacks)
+        trainer = L.Trainer(**cfg.trainer, callbacks=callbacks, logger=wandb_logger)
         dm = DriverDataModule(**cfg.data)
         trainer.fit(model, datamodule=dm)
 
     elif what == "student":
         model = Student(**cfg.model.student)
-        trainer = L.Trainer(**cfg.trainer)
+        trainer = L.Trainer(**cfg.trainer, logger=wandb_logger)
         dm = DriverDataModule(**cfg.data)
         trainer.fit(model, datamodule=dm)
 
