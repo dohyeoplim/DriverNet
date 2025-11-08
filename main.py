@@ -3,6 +3,8 @@ from pathlib import Path
 import torch
 
 torch.set_float32_matmul_precision("high")
+torch.backends.cuda.matmul.fp32_precision = "tf32"
+torch.backends.cudnn.conv.fp32_precision = "tf32"
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")

@@ -61,11 +61,11 @@ class Student(L.LightningModule):
             cons = 0.0 * ce0
             if m.any():
                 cons = 0.5 * (F.kl_div(logit0[m].log_softmax(-1), p1[m], reduction="batchmean") + F.kl_div(logit1[m].log_softmax(-1), p0[m], reduction="batchmean"))
-            loss = ce0 + ce1 + 0.5 * cons
+            loss = ce0 + ce1 + 0.8 * cons
             probs_for_metric = (p0 + p1) * 0.5
         
         metric.update(probs_for_metric, y)
-        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -73,14 +73,14 @@ class Student(L.LightningModule):
         return self._step(batch, self.train_acc, "train")
 
     def on_train_epoch_end(self):
-        self.log("train/acc", self.train_acc.compute(), on_epoch=True, prog_bar=True)
+        self.log("train/acc", self.train_acc.compute(), on_epoch=True, prog_bar=True, sync_dist=True)
         self.train_acc.reset()
 
     def validation_step(self, batch, batch_idx):
         self._step(batch, self.val_acc, "val")
 
     def on_validation_epoch_end(self):
-        self.log("val/acc", self.val_acc.compute(), on_epoch=True, prog_bar=True)
+        self.log("val/acc", self.val_acc.compute(), on_epoch=True, prog_bar=True, sync_dist=True)
         self.val_acc.reset()
 
     # def test_step(self, batch, batch_idx):
