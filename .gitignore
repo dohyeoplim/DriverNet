@@ -243,3 +243,4 @@ output/*
 data/*
 .vscode
 lightning_logs
+wandb/
