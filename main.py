@@ -1,5 +1,8 @@
 import argparse
 from pathlib import Path
+import torch
+
+torch.set_float32_matmul_precision("high")
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")

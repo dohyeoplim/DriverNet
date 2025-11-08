@@ -6,6 +6,7 @@ from typing import Dict, Optional
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 FLIP_REMAP = {
     1: 3,  # c1(texting-R) <-> c3(texting-L)
@@ -35,6 +36,17 @@ class DriverDataset(Dataset):
         self.flip_p = float(flip_p)
         self.is_predict = is_predict
 
+    ########## TODO: 임시 ##########
+    @staticmethod
+    def _to_tensor_norm(img) -> torch.Tensor:
+        tf = transforms.Compose([
+            transforms.Resize(int(224 * 1.14), interpolation=InterpolationMode.BICUBIC),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        return tf(img)
+
     def __len__(self) -> int:
         return len(self.df)
 
@@ -50,6 +62,9 @@ class DriverDataset(Dataset):
 
         if self.transform is not None:
             original_image = self.transform(original_image)
+
+        if processed_image is not None:
+            processed_image = self._to_tensor_norm(processed_image)
 
         assert isinstance(original_image, torch.Tensor)
         assert isinstance(processed_image, torch.Tensor)

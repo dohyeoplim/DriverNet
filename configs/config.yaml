@@ -6,7 +6,6 @@ trainer:
     max_epochs: 10
     accelerator: auto
     devices: auto
-    precision: "16-mixed"
 
 model:
     teacher:
@@ -15,7 +14,7 @@ model:
         pretrained: true
 
     student:
-        name: "resnet50"
+        name: "resnet152"
         num_classes: 10
         pretrained: true
         lr: 3e-4
@@ -33,4 +32,4 @@ data:
     persistent_workers: True
     image_size: 224
     flip_p: 0.2
-    test_split: 0.15
+    validation_split: 0.2
