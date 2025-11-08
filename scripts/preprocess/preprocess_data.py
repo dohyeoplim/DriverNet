@@ -17,13 +17,13 @@ def main():
     parser.add_argument("--bg_darken_factor", type=float, default=0.5)
     args = parser.parse_args()
 
-    device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     detector_processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
-    detector = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
+    detector = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50").to(device) # pyright: ignore[reportArgumentType]
 
     sam_processor = SamProcessor.from_pretrained("facebook/sam-vit-base")
-    sam_model = SamModel.from_pretrained("facebook/sam-vit-base")
+    sam_model = SamModel.from_pretrained("facebook/sam-vit-base").to(device) # pyright: ignore[reportArgumentType]
 
     print(f"Smoothing kernel: {args.smooth_k}, Feathering kernel: {args.feather_k}")
 
