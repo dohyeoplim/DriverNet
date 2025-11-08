@@ -43,27 +43,27 @@ class Student(L.LightningModule):
 
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
         x0 = batch["pixel_values"]
-        y = batch["labels"]
+        x1 = batch["pixel_values_proc"]
+        m = batch.get("has_proc")
+        y = batch["labels"].long()
 
         logit0 = self(x0)
         ce0 = self.criterion(logit0, y)
 
-        x1 = batch.get("pixel_values_proc")
-        if x1 is not None:
-            logit1 = self(x1)
-            ce1 = self.criterion(logit1, y)
-
-            with torch.no_grad():
-                p0 = logit0.softmax(-1)
-                p1 = logit1.softmax(-1)
-
-            cons = 0.5 * (F.kl_div(logit0.log_softmax(-1), p1, reduction="batchmean") + F.kl_div(logit1.log_softmax(-1), p0, reduction="batchmean"))
-            loss = ce0 + ce1 + 0.5 * cons
-            probs_for_metric = 0.5 * (p0 + p1)
-        else:
+        if m is None or not m.any():
             loss = ce0
             probs_for_metric = logit0.softmax(-1)
-
+        else:
+            logit1 = self(x1)
+            ce1 = self.criterion(logit1[m], y[m]) if m.any() else 0.0 * ce0
+            with torch.no_grad():
+                p0, p1 = logit0.softmax(-1), logit1.softmax(-1)
+            cons = 0.0 * ce0
+            if m.any():
+                cons = 0.5 * (F.kl_div(logit0[m].log_softmax(-1), p1[m], reduction="batchmean") + F.kl_div(logit1[m].log_softmax(-1), p0[m], reduction="batchmean"))
+            loss = ce0 + ce1 + 0.5 * cons
+            probs_for_metric = (p0 + p1) * 0.5
+        
         metric.update(probs_for_metric, y)
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
 

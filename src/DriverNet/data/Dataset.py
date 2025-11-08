@@ -55,10 +55,16 @@ class DriverDataset(Dataset):
         img_name = row["img"]
         class_name = row["classname"] if "classname" in row else ""
         original_img_path = self.original_root_dir / class_name / img_name
-        processed_image_path = self.processed_root_dir / class_name / img_name.replace(".jpg", "_processed.png")
-
         original_image = Image.open(original_img_path).convert("RGB")
-        processed_image = Image.open(processed_image_path).convert("RGB")
+        
+        if self.processed_root_dir is not None:
+            processed_image_path = self.processed_root_dir / class_name / f"{Path(img_name).stem}_processed.png"
+            if processed_image_path.exists():
+                processed_image = Image.open(processed_image_path).convert("RGB")
+            else:
+                processed_image = None
+        else:
+            processed_image = None
 
         if self.transform is not None:
             original_image = self.transform(original_image)
@@ -66,11 +72,8 @@ class DriverDataset(Dataset):
         if processed_image is not None:
             processed_image = self._to_tensor_norm(processed_image)
 
-        assert isinstance(original_image, torch.Tensor)
-        assert isinstance(processed_image, torch.Tensor)
-
         if self.is_predict:
-            return {"pixel_values": original_image, "img_name": img_name}
+            return {"pixel_values": original_image, "img_name": img_name} # type: ignore
 
         assert self.class_to_idx is not None
         label = self.class_to_idx[row["classname"]]
@@ -80,8 +83,13 @@ class DriverDataset(Dataset):
         #     if label in FLIP_REMAP:
         #         label = FLIP_REMAP[label]
 
+        has_proc = processed_image is not None
+        if not has_proc:
+            processed_image = original_image.clone() # type: ignore
+
         return {
-            "pixel_values": original_image,
+            "pixel_values": original_image, # type: ignore
             "pixel_values_proc": processed_image,
+            "has_proc": torch.tensor(has_proc),
             "labels": torch.tensor(label, dtype=torch.long),
         }

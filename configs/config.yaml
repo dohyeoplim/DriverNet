@@ -6,6 +6,7 @@ trainer:
     max_epochs: 10
     accelerator: auto
     devices: auto
+    precision: "16-mixed"
 
 model:
     teacher:
