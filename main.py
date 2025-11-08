@@ -12,7 +12,7 @@ def parse_args() -> argparse.Namespace:
 def main():
     torch.set_float32_matmul_precision('high')
 
-    # wandb.init(project="DriverNet", entity="dohyeoplim-edu")
+    wandb.init(project="DriverNet", entity="dohyeoplim-edu")
 
     args = parse_args()
     if args.download_dataset:

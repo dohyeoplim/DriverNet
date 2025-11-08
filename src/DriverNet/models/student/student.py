@@ -76,5 +76,5 @@ class Student(L.LightningModule):
         return F.softmax(logits, dim=-1)
 
     def configure_optimizers(self):
-        opt = AdamW(self.parameters(), lr=self.hparams["lr"], weight_decay=self.hparams["weight_decay"])
+        opt = AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         return opt
