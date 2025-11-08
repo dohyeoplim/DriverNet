@@ -10,7 +10,7 @@ from typing import Literal
 class Student(L.LightningModule):
     def __init__(
             self,
-            model_name: str = "resnet50",
+            name: str = "resnet50",
             num_classes: int = 10,
             pretrained: bool = True,
             lr: float = 3e-4,
@@ -22,9 +22,9 @@ class Student(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        if model_name not in MODEL_NAMES:
-            raise ValueError(f"Invalid model: {model_name}. Available: {MODEL_NAMES}.")
-        self.model = MODEL_OPTIONS[model_name](num_classes=num_classes, pretrained=pretrained)
+        if name not in MODEL_NAMES:
+            raise ValueError(f"Invalid model: {name}. Available: {MODEL_NAMES}.")
+        self.model = MODEL_OPTIONS[name](num_classes=num_classes, pretrained=pretrained)
 
         self.num_classes: int = num_classes
         self.lr: float = lr
