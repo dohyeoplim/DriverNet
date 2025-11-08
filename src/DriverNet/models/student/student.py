@@ -65,7 +65,7 @@ class Student(L.LightningModule):
             probs_for_metric = (p0 + p1) * 0.5
         
         metric.update(probs_for_metric, y)
-        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
 
         return loss
 
