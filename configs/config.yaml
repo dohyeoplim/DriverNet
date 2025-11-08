@@ -7,7 +7,7 @@ trainer:
     accelerator: auto
     devices: auto
     precision: "16-mixed"
-    default_root_dir: "output/"
+    strategy: "ddp"
 
 model:
     teacher:
@@ -16,21 +16,22 @@ model:
         pretrained: true
 
     student:
-        name: "resnet50"
+        name: "resnet152"
         num_classes: 10
         pretrained: true
         lr: 3e-4
-        weight_decay: 5e-2
+        weight_decay: 5e-4
         label_smoothing: 0.05
         scheduler: "onecycle"
 
 data:
-    data_dir: "input/imgs/train"
+    original_data_dir: "input/original/train"
+    processed_data_dir: "input/processed/train"
     csv_path: "input/driver_imgs_list.csv"
-    batch_size: 128
+    batch_size: 64
     num_workers: 4
     pin_memory: True
     persistent_workers: True
     image_size: 224
     flip_p: 0.2
-    test_split: 0.15
+    validation_split: 0.2

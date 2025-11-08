@@ -2,7 +2,8 @@ from src.DriverNet.data.DataModule import DriverDataModule
 
 def main():
     dm = DriverDataModule(
-        data_dir="./input/imgs/train",
+        original_data_dir="./input/original/train",
+        processed_data_dir="./input/processed/train",
         csv_path="./input/driver_imgs_list.csv",
         batch_size=8,
         num_workers=0,
@@ -10,7 +11,7 @@ def main():
         persistent_workers=False,
         image_size=224,
         flip_p=0.1,
-        test_split=0.2,
+        validation_split=0.2,
     )
 
     dm.prepare_data()
@@ -18,6 +19,7 @@ def main():
 
     batch = next(iter(dm.train_dataloader()))
     print("pixel_values:", batch["pixel_values"].shape)
+    print("pixel_values_proc:", batch["pixel_values_proc"].shape)
     print("labels:", batch["labels"])
 
     assert dm.train_ds is not None and dm.val_ds is not None
