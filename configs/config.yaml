@@ -14,6 +14,16 @@ model:
         num_classes: 10
         pretrained: true
 
+    student:
+        name: "resnet50"
+        num_classes: 10
+        pretrained: true
+        lr: 3e-4
+        weight_decay: 5e-2
+        label_smoothing: 0.05
+        scheduler: "onecycle"
+        max_epochs: 30
+
 data:
     data_dir: "input/imgs/train"
     csv_path: "input/driver_imgs_list.csv"
