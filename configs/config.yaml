@@ -7,7 +7,6 @@ trainer:
     accelerator: auto
     devices: auto
     precision: "16-mixed"
-    default_root_dir: "output/"
 
 model:
     teacher:
