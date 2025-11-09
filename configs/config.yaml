@@ -3,7 +3,7 @@ global:
     out_dir: "output"
 
 trainer:
-    max_epochs: 10
+    max_epochs: 20
     accelerator: auto
     devices: auto
     precision: "16-mixed"
@@ -23,7 +23,7 @@ model:
         max_logit_norm: null
 
     student:
-        name: "resnet152"
+        name: "resnet101"
         num_classes: 10
         pretrained: true
         lr: 3e-4

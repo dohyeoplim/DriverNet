@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train", choices=["teacher", "student"], help="Train [teacher/student] model")
     p.add_argument("--test", choices=["teacher", "student"], help="Test [teacher/student] model")
     p.add_argument("--train-and-submit", choices=["teacher", "student"], help="Train and submit [teacher/student] model")
+    p.add_argument("--checkpoint-path", type=str, default=None)
     return p.parse_args()
 
 def main():
@@ -36,7 +37,7 @@ def main():
 
     if args.test:
         from src.DriverNet.core.test import test
-        test(args.test)
+        test(args.test, checkpoint_path=args.checkpoint_path)
         return
 
     if args.train_and_submit:
