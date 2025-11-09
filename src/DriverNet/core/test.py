@@ -16,9 +16,9 @@ def test(what: str) -> None:
     else:
         raise ValueError(f"Unknown model type: {what!r}")
 
-    test_data_dir = "./input/imgs/test"
+    test_data_dir = "./input/original/test"
 
-    dm = DriverDataModule(**cfg.data, test_dir=test_data_dir)
+    dm = DriverDataModule(**cfg.data_test)
 
     dm.setup(stage="test")
 

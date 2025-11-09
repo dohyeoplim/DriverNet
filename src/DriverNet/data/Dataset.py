@@ -31,6 +31,8 @@ class DriverDataset(Dataset):
         self.original_root_dir = Path(original_root_dir)
         if processed_root_dir is not None:
             self.processed_root_dir = Path(processed_root_dir)
+        else:
+            self.processed_root_dir = None
         self.class_to_idx = class_to_idx
         self.transform = transform
         self.flip_p = float(flip_p)

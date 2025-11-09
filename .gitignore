@@ -240,6 +240,7 @@ pyrightconfig.json
 
 input/*
 output/*
+!output/.gitkeep
 data/*
 .vscode
 lightning_logs
