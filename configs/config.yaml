@@ -17,6 +17,7 @@ model:
         lr: 3e-4
         weight_decay: 5e-4
         scheduler: "onecycle"
+        label_smoothing: 0.05
         cons_weight: 0.2
         cp_weight: 0.05
         max_logit_norm: null
@@ -28,6 +29,7 @@ model:
         lr: 3e-4
         weight_decay: 5e-4
         scheduler: "onecycle"
+        label_smoothing: 0.05
         cons_weight: 0.2
         cp_weight: 0.05
         max_logit_norm: null
@@ -56,4 +58,3 @@ data_test:
     image_size: 224
     flip_p: 0.2
     validation_split: 0.2
-

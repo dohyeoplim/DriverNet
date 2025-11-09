@@ -20,6 +20,7 @@ class BaseModel(L.LightningModule):
         lr: float,
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
+        label_smoothing: float = 0,
         cons_weight: float = 0.2,
         cp_weight: float = 0.05,
         max_logit_norm: Optional[float] = None,
@@ -36,11 +37,12 @@ class BaseModel(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler_name: Literal["onecycle", "none"] = scheduler
 
+        self.label_smoothing: float = float(label_smoothing)
         self.cons_weight: float = float(cons_weight)
         self.cp_weight: float = float(cp_weight)
         self.max_logit_norm: Optional[float] = max_logit_norm
 
-        self.ce = nn.CrossEntropyLoss()
+        self.ce = nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
 
         self.train_acc = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc = MulticlassAccuracy(num_classes=self.num_classes)
