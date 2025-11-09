@@ -85,7 +85,7 @@ class Student(L.LightningModule):
         loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp
 
         metric.update(probs_avg, y)
-        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=(prefix == "val"))
         if prefix == "val":
             base_logits = logit0 if (m is None or not bool(m.any())) else 0.5 * (logit0 + logit1)
             self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
