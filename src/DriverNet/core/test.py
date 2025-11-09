@@ -30,4 +30,4 @@ def test(what: str, checkpoint_path: str | None = None) -> None:
 
     outputs = trainer.predict(model, datamodule=dm)
 
-    create_submission(outputs, "./output/submission.csv")
+    create_submission(outputs, "./output/submission.csv") # type: ignore
