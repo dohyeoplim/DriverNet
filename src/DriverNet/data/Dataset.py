@@ -58,7 +58,7 @@ class DriverDataset(Dataset):
         class_name = row["classname"] if "classname" in row else ""
         original_img_path = self.original_root_dir / class_name / img_name
         original_image = Image.open(original_img_path).convert("RGB")
-        
+
         if self.processed_root_dir is not None:
             processed_image_path = self.processed_root_dir / class_name / f"{Path(img_name).stem}_processed.png"
             if processed_image_path.exists():
