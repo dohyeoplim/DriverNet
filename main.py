@@ -11,6 +11,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--download-dataset", action="store_true", help="Download dataset from Kaggle")
     p.add_argument("--train", choices=["teacher", "student"], help="Train [teacher/student] model")
     p.add_argument("--test", choices=["teacher", "student"], help="Test [teacher/student] model")
+    p.add_argument("--train-and-submit", choices=["teacher", "student"], help="Train and submit [teacher/student] model")
     return p.parse_args()
 
 def main():
@@ -31,6 +32,13 @@ def main():
     if args.test:
         from src.DriverNet.core.test import test
         test(args.test)
+        return
+
+    if args.train_and_submit:
+        from src.DriverNet.core.train import train
+        from src.DriverNet.core.test import test
+        train(args.train_and_submit)
+        test(args.train_and_submit)
         return
 
 if __name__ == "__main__":
