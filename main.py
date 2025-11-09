@@ -6,6 +6,9 @@ torch.set_float32_matmul_precision("high")
 torch.backends.cuda.matmul.fp32_precision = "tf32"
 torch.backends.cudnn.conv.fp32_precision = "tf32" # type: ignore
 
+import warnings
+warnings.filterwarnings("ignore", message=".*TF32.*")
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
     p.add_argument("--download-dataset", action="store_true", help="Download dataset from Kaggle")

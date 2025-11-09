@@ -22,7 +22,7 @@ model:
         max_logit_norm: null
 
     student:
-        name: "resnet151"
+        name: "resnet152"
         num_classes: 10
         pretrained: true
         lr: 3e-4
