@@ -16,11 +16,9 @@ def test(what: str) -> None:
     else:
         raise ValueError(f"Unknown model type: {what!r}")
 
-    test_data_dir = "./input/original/test"
-
     dm = DriverDataModule(**cfg.data_test)
 
-    dm.setup(stage="test")
+    dm.setup(stage="predict")
 
     trainer = L.Trainer(**cfg.trainer)
 

@@ -11,6 +11,7 @@ class StepOut(TypedDict):
 def create_submission(outputs: Sequence[StepOut], path="submission.csv"):
     preds_t = torch.cat([o["preds"] for o in outputs], dim=0).detach().cpu()
     preds: np.ndarray = preds_t.numpy()
+    preds = np.clip(preds, 1e-15, 1 - 1e-15)
 
     names: list[str] = [n for o in outputs for n in o["img_name"]]
 

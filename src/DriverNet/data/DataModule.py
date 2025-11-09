@@ -135,4 +135,4 @@ class DriverDataModule(L.LightningDataModule):
 
     def get_test_image_names(self) -> list[str]:
         assert self.predict_ds is not None, "Call setup(stage='test') first."
-        return list(self.test_ds.dataframe["img_name"]) # type: ignore[attr-defined]
+        return list(self.predict_ds.df["img"]) # type: ignore[attr-defined]

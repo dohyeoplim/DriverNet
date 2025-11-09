@@ -44,8 +44,10 @@ class Teacher(L.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         x = batch["pixel_values"]
+        img_names = batch["img_name"]
         y_hat = self(x)
-        return F.softmax(y_hat, dim=1)
+
+        return {"preds": F.softmax(y_hat, dim=1), "img_name": img_names}
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
