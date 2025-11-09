@@ -1,14 +1,27 @@
+import numpy as np
 import pandas as pd
 import torch
 from src.DriverNet.data.DataModule import DriverDataModule
-from typing import Any
+from typing import Any, Sequence, TypedDict
 
-def create_submission(outputs, path="submission.csv"):
-    preds = torch.cat([o["preds"] for o in outputs], dim=0).cpu().numpy()
-    names = sum([o["img_name"] for o in outputs], [])
-    assert len(names) == preds.shape[0], "Mismatch between names and predictions."
+class StepOut(TypedDict):
+    preds: torch.Tensor
+    img_name: Sequence[str]
 
-    df = pd.DataFrame(preds, columns=[f"c{i}" for i in range(preds.shape[1])])
-    df.insert(0, "img", names)
+def create_submission(outputs: Sequence[StepOut], path="submission.csv"):
+    preds_t = torch.cat([o["preds"] for o in outputs], dim=0).detach().cpu()
+    preds: np.ndarray = preds_t.numpy()
+
+    names: list[str] = [n for o in outputs for n in o["img_name"]]
+
+    if preds.shape[0] != len(names):
+        raise ValueError(f"Mismatch: names={len(names)} vs preds={preds.shape[0]}")
+
+
+    columns = pd.Index([f"c{i}" for i in range(preds.shape[1])], dtype="object")
+    df = pd.DataFrame(data=preds, columns=columns, copy=False)
+
+    df.insert(0, "img", pd.Series(names, dtype="string"))
+
     df.to_csv(path, index=False)
     print(f"✅ Saved submission: {path} ({len(df)} rows)")
