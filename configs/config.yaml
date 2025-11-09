@@ -22,6 +22,9 @@ model:
         lr: 3e-4
         weight_decay: 5e-4
         scheduler: "onecycle"
+        cons_weight: 0.2
+        cp_weight: 0.05
+        max_logit_norm: null
 
 data:
     original_data_dir: "input/original/train"

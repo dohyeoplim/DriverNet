@@ -3,22 +3,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, LRScheduler
+from torch.optim.lr_scheduler import OneCycleLR, LRScheduler
 from torchmetrics.classification import MulticlassAccuracy
+from typing import Literal, Optional
 
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
-from typing import Literal
 
 class Student(L.LightningModule):
     def __init__(
-            self,
-            name: str,
-            num_classes: int,
-            pretrained: bool,
-            lr: float,
-            weight_decay: float,
-            scheduler: Literal["onecycle", "none"],
-        ):
+        self,
+        name: str,
+        num_classes: int,
+        pretrained: bool,
+        lr: float,
+        weight_decay: float,
+        scheduler: Literal["onecycle", "none"],
+        cons_weight: float = 0.2,
+        cp_weight: float = 0.05,
+        max_logit_norm: Optional[float] = None,
+    ):
         super().__init__()
         self.save_hyperparameters()
 
@@ -26,21 +29,25 @@ class Student(L.LightningModule):
             raise ValueError(f"Invalid model: {name}. Available: {MODEL_NAMES}.")
         self.model = MODEL_OPTIONS[name](num_classes=num_classes, pretrained=pretrained)
 
-        self.num_classes: int = num_classes
-        self.lr: float = lr
-        self.weight_decay: float = weight_decay
+        self.num_classes = num_classes
+        self.lr = lr
+        self.weight_decay = weight_decay
         self.scheduler_name: Literal["onecycle", "none"] = scheduler
+
+        self.cons_weight: float = float(cons_weight)
+        self.cp_weight: float = float(cp_weight)
+        self.max_logit_norm: Optional[float] = max_logit_norm
 
         self.ce = nn.CrossEntropyLoss()
 
-        self.train_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
-        self.val_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
-        self.test_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
+        self.train_acc = MulticlassAccuracy(num_classes=self.num_classes)
+        self.val_acc = MulticlassAccuracy(num_classes=self.num_classes)
+        self.test_acc = MulticlassAccuracy(num_classes=self.num_classes)
 
     def forward(self, x):
         return self.model(x)
 
-    def _maybe_clip_logits(self, logits):
+    def _maybe_clip_logits(self, logits: torch.Tensor) -> torch.Tensor:
         if self.max_logit_norm is not None:
             with torch.no_grad():
                 n = logits.norm(dim=1, keepdim=True).clamp_min(1e-6)
@@ -50,7 +57,7 @@ class Student(L.LightningModule):
 
     @staticmethod
     def _penalty(probs: torch.Tensor) -> torch.Tensor:
-        # β * Σ p log p (encourages higher entropy)
+        # confidence penalty: Σ p log p (<= 0) -> encourages higher entropy
         return (probs * probs.clamp_min(1e-8).log()).sum(dim=-1).mean()
 
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
@@ -75,12 +82,13 @@ class Student(L.LightningModule):
             probs_avg = 0.5 * (p0 + p1)
 
         cp = self._penalty(probs_avg)
-        loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp # type: ignore
+        loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp
 
         metric.update(probs_avg, y)
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
         if prefix == "val":
-            self.log("val/logloss", self.ce((logit0 if (m is None or not bool(m.any())) else 0.5*(logit0+logit1)), y), on_epoch=True, prog_bar=True, sync_dist=True)
+            base_logits = logit0 if (m is None or not bool(m.any())) else 0.5 * (logit0 + logit1)
+            self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -97,16 +105,9 @@ class Student(L.LightningModule):
         self.log("val/acc", self.val_acc.compute(), on_epoch=True, prog_bar=True, sync_dist=True)
         self.val_acc.reset()
 
-    # def test_step(self, batch, batch_idx):
-    #     self._step(batch, self.test_acc, "test")
-
-    # def on_test_epoch_end(self):
-    #     self.log("test/acc", self.test_acc.compute(), on_epoch=True)
-    #     self.test_acc.reset()
-
     def predict_step(self, batch, batch_idx):
         x = batch["pixel_values"]
-        y_hat = self(x)
+        y_hat = self._maybe_clip_logits(self(x))
         probs = F.softmax(y_hat, dim=1)
         return {"preds": probs, "img_name": batch["img_name"]}
 
@@ -119,7 +120,7 @@ class Student(L.LightningModule):
         if self.scheduler_name == "onecycle":
             if self.trainer is None:
                 raise RuntimeError("Trainer not attached; OneCycle needs total steps.")
-                
+
             total_steps = int(self.trainer.estimated_stepping_batches)
 
             sched: LRScheduler = OneCycleLR(
