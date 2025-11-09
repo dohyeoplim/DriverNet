@@ -16,7 +16,7 @@ model:
         pretrained: true
 
     student:
-        name: "resnet152"
+        name: "resnet101"
         num_classes: 10
         pretrained: true
         lr: 3e-4
