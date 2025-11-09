@@ -1,11 +1,13 @@
+import lightning as L
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Optional
+
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-import lightning as L
-from src.DriverNet.data.Transforms import DriverTransforms
+
 from src.DriverNet.data.Dataset import DriverDataset
+from src.DriverNet.data.Transforms import DriverTransforms
 
 class DriverDataModule(L.LightningDataModule):
     def __init__(
@@ -23,6 +25,7 @@ class DriverDataModule(L.LightningDataModule):
         predict_dir: Optional[str] = None,
     ):
         super().__init__()
+        self.save_hyperparameters()
         self.original_data_dir = Path(original_data_dir)
         self.processed_data_dir = Path(processed_data_dir)
         self.csv_path = csv_path
@@ -44,17 +47,16 @@ class DriverDataModule(L.LightningDataModule):
 
     def prepare_data(self):
         if not self.original_data_dir.exists() or not self.processed_data_dir.exists():
-            raise FileNotFoundError(
-                f"Dataset folder not found. Run `uv run main.py --download-dataset` first."
-            )
+            raise FileNotFoundError("Dataset folder not found. Run `uv run main.py --download-dataset` first.")
 
     def setup(self, stage: Optional[str] = None):
-        if stage == "predict" and self.predict_dir:
+        if stage == "predict":
+            if self.predict_dir is None:
+                raise ValueError("predict_dir must be set for predict stage.")
             if not self.predict_dir.exists():
                 raise FileNotFoundError(f"Test dataset folder not found: {self.predict_dir}")
 
             test_images = sorted(list(self.predict_dir.glob("*.jpg")))
-
             predict_df = pd.DataFrame({"img": [p.name for p in test_images]})
             val_tf = self._tf.get_transforms(train=False)
 
@@ -64,39 +66,42 @@ class DriverDataModule(L.LightningDataModule):
                 transform=val_tf,
                 is_predict=True,
             )
-        else:
-            assert self.csv_path and Path(self.csv_path).exists()
-            df = pd.read_csv(self.csv_path)
+            return
 
+        if self.train_ds is None or self.val_ds is None:
+            if not self.csv_path or not Path(self.csv_path).exists():
+                raise FileNotFoundError(f"CSV file not found: {self.csv_path}")
+
+            df = pd.read_csv(self.csv_path)
             classes = sorted(df["classname"].unique())
             self.class_to_idx = {cls: i for i, cls in enumerate(classes)}
 
-            train_idx, val_idx = train_test_split(
-                df.index,
+            train_df, val_df = train_test_split(
+                df,
                 test_size=self.validation_split,
                 random_state=42,
                 stratify=df["classname"],
             )
-            train_df = df.loc[train_idx].reset_index(drop=True)
-            val_df = df.loc[val_idx].reset_index(drop=True)
 
             train_tf = self._tf.get_transforms(train=True)
             val_tf = self._tf.get_transforms(train=False)
 
             self.train_ds = DriverDataset(
-                dataframe=train_df,
+                dataframe=train_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
                 class_to_idx=self.class_to_idx,
                 transform=train_tf,
+                processed_transform=val_tf,
                 flip_p=self.flip_p,
             )
             self.val_ds = DriverDataset(
-                dataframe=val_df,
+                dataframe=val_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
                 class_to_idx=self.class_to_idx,
                 transform=val_tf,
+                processed_transform=val_tf,
                 flip_p=0.0,
             )
 
@@ -134,5 +139,5 @@ class DriverDataModule(L.LightningDataModule):
         )
 
     def get_test_image_names(self) -> list[str]:
-        assert self.predict_ds is not None, "Call setup(stage='test') first."
-        return list(self.predict_ds.df["img"]) # type: ignore[attr-defined]
+        assert self.predict_ds is not None, "Call setup(stage='predict') first."
+        return list(self.predict_ds.df["img"])  # type: ignore[attr-defined]
