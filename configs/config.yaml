@@ -3,7 +3,7 @@ global:
     out_dir: "output"
 
 trainer:
-    max_epochs: 20
+    max_epochs: 10
     accelerator: auto
     devices: auto
     precision: "16-mixed"
@@ -11,7 +11,7 @@ trainer:
 
 model:
     teacher:
-        name: "vit_b_16"
+        name: "vit_vit_b_16"
         num_classes: 10
         pretrained: true
         lr: 3e-4
@@ -23,11 +23,11 @@ model:
         max_logit_norm: null
 
     student:
-        name: "resnet101"
+        name: "resnet152"
         num_classes: 10
         pretrained: true
         lr: 3e-4
-        weight_decay: 5e-3
+        weight_decay: 1e-3
         scheduler: "onecycle"
         label_smoothing: 0.05
         cons_weight: 0.2
