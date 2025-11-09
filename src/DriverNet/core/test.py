@@ -5,14 +5,20 @@ from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
 from src.DriverNet.utils.submission import create_submission
 
-def test(what: str) -> None:
+def test(what: str, checkpoint_path: str | None = None) -> None:
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
     if what == "teacher":
-        model = Teacher(**cfg.model.teacher)
+        if checkpoint_path:
+            model = Teacher.load_from_checkpoint(checkpoint_path)
+        else:
+            model = Teacher(**cfg.model.teacher)
     elif what == "student":
-        model = Student(**cfg.model.student)
+        if checkpoint_path:
+            model = Student.load_from_checkpoint(checkpoint_path)
+        else:
+            model = Student(**cfg.model.student)
     else:
         raise ValueError(f"Unknown model type: {what!r}")
 

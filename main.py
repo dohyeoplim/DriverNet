@@ -37,8 +37,8 @@ def main():
     if args.train_and_submit:
         from src.DriverNet.core.train import train
         from src.DriverNet.core.test import test
-        train(args.train_and_submit)
-        test(args.train_and_submit)
+        best_checkpoint_path = train(args.train_and_submit)
+        test(args.train_and_submit, checkpoint_path=best_checkpoint_path)
         return
 
 if __name__ == "__main__":
