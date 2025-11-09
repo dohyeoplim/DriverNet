@@ -17,7 +17,6 @@ class Student(L.LightningModule):
             pretrained: bool,
             lr: float,
             weight_decay: float,
-            label_smoothing: float,
             scheduler: Literal["onecycle", "none"],
         ):
         super().__init__()
@@ -30,10 +29,10 @@ class Student(L.LightningModule):
         self.num_classes: int = num_classes
         self.lr: float = lr
         self.weight_decay: float = weight_decay
-        self.label_smoothing: float = label_smoothing
         self.scheduler_name: Literal["onecycle", "none"] = scheduler
 
-        self.criterion: nn.Module = nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
+        self.ce = nn.CrossEntropyLoss()
+
         self.train_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
         self.test_acc: MulticlassAccuracy = MulticlassAccuracy(num_classes=self.num_classes)
@@ -41,32 +40,47 @@ class Student(L.LightningModule):
     def forward(self, x):
         return self.model(x)
 
+    def _maybe_clip_logits(self, logits):
+        if self.max_logit_norm is not None:
+            with torch.no_grad():
+                n = logits.norm(dim=1, keepdim=True).clamp_min(1e-6)
+                s = (self.max_logit_norm / n).clamp_max(1.0)
+            logits = logits * s
+        return logits
+
+    @staticmethod
+    def _penalty(probs: torch.Tensor) -> torch.Tensor:
+        # β * Σ p log p (encourages higher entropy)
+        return (probs * probs.clamp_min(1e-8).log()).sum(dim=-1).mean()
+
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
         x0 = batch["pixel_values"]
-        x1 = batch["pixel_values_proc"]
+        x1 = batch.get("pixel_values_proc")
         m = batch.get("has_proc")
         y = batch["labels"].long()
 
-        logit0 = self(x0)
-        ce0 = self.criterion(logit0, y)
+        logit0 = self._maybe_clip_logits(self(x0))
+        ce0 = self.ce(logit0, y)
+        p0 = F.softmax(logit0, dim=-1)
 
-        if m is None or not m.any():
-            loss = ce0
-            probs_for_metric = logit0.softmax(-1)
+        if m is None or not bool(m.any()):
+            probs_avg = p0
+            cons = torch.zeros((), device=logit0.device, dtype=logit0.dtype)
+            ce1 = torch.zeros_like(ce0)
         else:
-            logit1 = self(x1)
-            ce1 = self.criterion(logit1[m], y[m]) if m.any() else 0.0 * ce0
-            with torch.no_grad():
-                p0, p1 = logit0.softmax(-1), logit1.softmax(-1)
-            cons = 0.0 * ce0
-            if m.any():
-                cons = 0.5 * (F.kl_div(logit0[m].log_softmax(-1), p1[m], reduction="batchmean") + F.kl_div(logit1[m].log_softmax(-1), p0[m], reduction="batchmean"))
-            loss = ce0 + ce1 + 0.8 * cons
-            probs_for_metric = (p0 + p1) * 0.5
-        
-        metric.update(probs_for_metric, y)
-        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
+            logit1 = self._maybe_clip_logits(self(x1))
+            p1 = F.softmax(logit1, dim=-1)
+            ce1 = self.ce(logit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
+            cons = 0.5 * (F.kl_div(F.log_softmax(logit0[m], dim=-1), p1[m], reduction="batchmean") + F.kl_div(F.log_softmax(logit1[m], dim=-1), p0[m], reduction="batchmean"))
+            probs_avg = 0.5 * (p0 + p1)
 
+        cp = self._penalty(probs_avg)
+        loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp # type: ignore
+
+        metric.update(probs_avg, y)
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True)
+        if prefix == "val":
+            self.log("val/logloss", self.ce((logit0 if (m is None or not bool(m.any())) else 0.5*(logit0+logit1)), y), on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def training_step(self, batch, batch_idx):
