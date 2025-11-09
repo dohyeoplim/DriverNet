@@ -9,8 +9,6 @@ from typing import Literal, Optional
 
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
 
-
-##### TODO: 코드 리팩토링 #####
 class Teacher(L.LightningModule):
     def __init__(
         self,
@@ -20,6 +18,7 @@ class Teacher(L.LightningModule):
         lr: float,
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
+        cons_weight: float = 0.2,
         cp_weight: float = 0.05,
         max_logit_norm: Optional[float] = None,
     ):
@@ -35,6 +34,7 @@ class Teacher(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler_name: Literal["onecycle", "none"] = scheduler
 
+        self.cons_weight: float = float(cons_weight)
         self.cp_weight: float = float(cp_weight)
         self.max_logit_norm: Optional[float] = max_logit_norm
 
@@ -60,21 +60,46 @@ class Teacher(L.LightningModule):
         return (probs * probs.clamp_min(1e-8).log()).sum(dim=-1).mean()
 
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
-        x = batch["pixel_values"]
+        x0 = batch["pixel_values"]
+        x1 = batch.get("pixel_values_proc")
+        m = batch.get("has_proc")
         y = batch["labels"].long()
 
-        logits = self._maybe_clip_logits(self(x))
-        ce = self.ce(logits, y)
-        probs = F.softmax(logits, dim=-1)
-        cp = self._penalty(probs)
+        logit0 = self._maybe_clip_logits(self(x0))
+        ce0 = self.ce(logit0, y)
+        p0 = F.softmax(logit0, dim=-1)
 
-        loss = ce + self.cp_weight * cp
+        if m is None or not bool(m.any()):
+            probs_avg = p0
+            cons = torch.zeros((), device=logit0.device, dtype=logit0.dtype)
+            ce1 = torch.zeros_like(ce0)
+            logit1 = None
+        else:
+            logit1 = self._maybe_clip_logits(self(x1))
+            p1 = F.softmax(logit1, dim=-1)
+            ce1 = self.ce(logit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
+            cons = 0.5 * (
+                F.kl_div(F.log_softmax(logit0[m], dim=-1), p1[m], reduction="batchmean")
+                + F.kl_div(F.log_softmax(logit1[m], dim=-1), p0[m], reduction="batchmean")
+            )
+            probs_avg = 0.5 * (p0 + p1)
 
-        metric.update(probs, y)
-        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=(prefix != "train"))
+        cp = self._penalty(probs_avg)
+        loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp
+
+        metric.update(probs_avg, y)
+        self.log(
+            f"{prefix}/loss",
+            loss,
+            on_step=(prefix == "train"),
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=(prefix != "train"),
+        )
 
         if prefix == "val":
-            self.log("val/logloss", ce, on_epoch=True, prog_bar=True, sync_dist=True)
+            base_logits = logit0 if (m is None or not bool(m.any())) else 0.5 * (logit0 + logit1)
+            self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -93,12 +118,26 @@ class Teacher(L.LightningModule):
         self.val_acc.reset()
 
     def test_step(self, batch, batch_idx):
-        x = batch["pixel_values"]
+        x0 = batch["pixel_values"]
+        x1 = batch.get("pixel_values_proc")
+        m = batch.get("has_proc")
         y = batch["labels"].long()
-        logits = self._maybe_clip_logits(self(x))
-        ce = self.ce(logits, y)
-        probs = F.softmax(logits, dim=-1)
-        self.test_acc.update(probs, y)
+
+        logit0 = self._maybe_clip_logits(self(x0))
+        p0 = F.softmax(logit0, dim=-1)
+        ce0 = self.ce(logit0, y)
+
+        if m is None or not bool(m.any()):
+            probs_avg = p0
+            ce = ce0
+        else:
+            logit1 = self._maybe_clip_logits(self(x1))
+            p1 = F.softmax(logit1, dim=-1)
+            ce1 = self.ce(logit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
+            probs_avg = 0.5 * (p0 + p1)
+            ce = ce0 + ce1
+
+        self.test_acc.update(probs_avg, y)
         self.log("test/logloss", ce, on_epoch=True, prog_bar=True, sync_dist=True)
         return ce
 
@@ -107,10 +146,21 @@ class Teacher(L.LightningModule):
         self.test_acc.reset()
 
     def predict_step(self, batch, batch_idx):
-        x = batch["pixel_values"]
+        x0 = batch["pixel_values"]
+        x1 = batch.get("pixel_values_proc")
+        m = batch.get("has_proc")
         img_names = batch["img_name"]
-        logits = self._maybe_clip_logits(self(x))
-        probs = F.softmax(logits, dim=1)
+
+        logit0 = self._maybe_clip_logits(self(x0))
+        p0 = F.softmax(logit0, dim=1)
+
+        if m is None or not bool(m.any()):
+            probs = p0
+        else:
+            logit1 = self._maybe_clip_logits(self(x1))
+            p1 = F.softmax(logit1, dim=1)
+            probs = 0.5 * (p0 + p1)
+
         return {"preds": probs, "img_name": img_names}
 
     def configure_optimizers(self):
