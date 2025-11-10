@@ -3,8 +3,10 @@ from pathlib import Path
 import torch
 
 torch.set_float32_matmul_precision("high")
-torch.backends.cuda.matmul.fp32_precision = "tf32"
-torch.backends.cudnn.conv.fp32_precision = "tf32" # type: ignore
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = False
 
 import os
 import warnings

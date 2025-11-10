@@ -6,7 +6,7 @@ trainer:
     max_epochs: 10
     accelerator: auto
     devices: auto
-    precision: "16-mixed"
+    precision: "bf16-mixed"
     strategy: "auto"
 
 model:
@@ -40,7 +40,7 @@ data:
     processed_data_dir: "input/processed/train"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 128
-    num_workers: 4
+    num_workers: 8
     pin_memory: True
     persistent_workers: True
     image_size: 224
@@ -53,7 +53,7 @@ data_test:
     predict_dir: "input/original/test"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 64
-    num_workers: 4
+    num_workers: 8
     pin_memory: True
     persistent_workers: True
     image_size: 224
