@@ -21,6 +21,7 @@ class BaseModel(L.LightningModule):
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
         label_smoothing: float = 0,
+        temperature: float = 0.8,
         cons_weight: float = 0.2,
         cp_weight: float = 0.05,
         max_logit_norm: Optional[float] = None,
@@ -38,6 +39,7 @@ class BaseModel(L.LightningModule):
         self.scheduler_name: Literal["onecycle", "none"] = scheduler
 
         self.label_smoothing: float = float(label_smoothing)
+        self.temperature: float = float(temperature)
         self.cons_weight: float = float(cons_weight)
         self.cp_weight: float = float(cp_weight)
         self.max_logit_norm: Optional[float] = max_logit_norm
@@ -59,6 +61,10 @@ class BaseModel(L.LightningModule):
             logits = logits * s
         return logits
 
+    def _scale(self, logits: torch.Tensor) -> torch.Tensor:
+        T = self.temperature
+        return logits if T == 1.0 else logits / T
+
     @staticmethod
     def _penalty(probs: torch.Tensor) -> torch.Tensor:
         # confidence penalty: Σ p log p (<= 0) -> encourages higher entropy
@@ -71,8 +77,9 @@ class BaseModel(L.LightningModule):
         y = batch["labels"].long()
 
         logit0 = self._maybe_clip_logits(self(x0))
-        ce0 = self.ce(logit0, y)
-        p0 = F.softmax(logit0, dim=-1)
+        slogit0 = self._scale(logit0)
+        ce0 = self.ce(slogit0, y)
+        p0 = F.softmax(slogit0, dim=-1)
 
         logit1 = None
         if m is None or not bool(m.any()):
@@ -81,11 +88,12 @@ class BaseModel(L.LightningModule):
             ce1 = torch.zeros_like(ce0)
         else:
             logit1 = self._maybe_clip_logits(self(x1))
-            p1 = F.softmax(logit1, dim=-1)
-            ce1 = self.ce(logit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
+            slogit1 = self._scale(logit1)
+            p1 = F.softmax(slogit1, dim=-1)
+            ce1 = self.ce(slogit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
             cons = 0.5 * (
-                F.kl_div(F.log_softmax(logit0[m], dim=-1), p1[m], reduction="batchmean")
-                + F.kl_div(F.log_softmax(logit1[m], dim=-1), p0[m], reduction="batchmean")
+                F.kl_div(F.log_softmax(slogit0[m], dim=-1), p1[m], reduction="batchmean")
+                + F.kl_div(F.log_softmax(slogit1[m], dim=-1), p0[m], reduction="batchmean")
             )
             probs_avg = 0.5 * (p0 + p1)
 
