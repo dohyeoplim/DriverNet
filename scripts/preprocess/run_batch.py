@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("ignore", message=".*non-meta parameter.*meta parameter.*")
 
 def main():
-    data_dir = Path("input/imgs/train")
+    data_dir = Path("input/original/train")
     out_dir = Path("input/processed_hard/train")
     out_dir.mkdir(parents=True, exist_ok=True)
 
