@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore", message=".*non-meta parameter.*meta parameter.
 
 def main():
     data_dir = Path("input/imgs/train")
-    out_dir = Path("input/processed/train")
+    out_dir = Path("input/processed_hard/train")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     class_dirs = [d for d in sorted(data_dir.glob("c*")) if d.is_dir()]
@@ -39,10 +39,10 @@ def main():
                 sam_model=sam_model,
                 sam_processor=sam_processor,
                 device=device.type,
-                smooth_k=5,
-                feather_k=15,
-                bg_blur_k=25,
-                bg_darken_factor=0.5,
+                smooth_k=3,
+                feather_k=2,
+                bg_blur_k=0,
+                bg_darken_factor=0,
             )
             if result.get("ok", False):
                 rows.append({
