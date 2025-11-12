@@ -99,8 +99,11 @@ class BaseModel(L.LightningModule):
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=sync_dist)
 
         if prefix == "val":
-            base_logits = torch.stack(logits, dim=0).mean(dim=0)
-            self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
+            # base_logits = torch.stack(logits, dim=0).mean(dim=0)
+            # self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
+            p = (F.softmax(logits[0], dim=-1) + F.softmax(logits[1], dim=-1) + F.softmax(logits[2], dim=-1)) / 3
+            val_nll = F.nll_loss((p.clamp_min(1e-8)).log(), y)
+            self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -145,9 +148,9 @@ class BaseModel(L.LightningModule):
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                pct_start=0.1,
+                pct_start=0.25,
                 div_factor=25.0,
-                final_div_factor=1e4,
+                final_div_factor=1e3,
                 anneal_strategy="cos",
             )
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}
