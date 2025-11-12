@@ -34,7 +34,7 @@ def train(what: str) -> str:
 
     if what == "teacher":
         model = Teacher(**cfg.model.teacher)
-        callbacks = _build_callbacks(monitor="val_acc", mode="max", prefix="teacher")
+        callbacks = _build_callbacks(monitor="val/acc", mode="max", prefix="teacher")
     elif what == "student":
         model = Student(**cfg.model.student)
         callbacks = _build_callbacks(monitor="val/logloss", mode="min", prefix="student")
