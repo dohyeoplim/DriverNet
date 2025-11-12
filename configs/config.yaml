@@ -26,21 +26,21 @@ model:
         name: "resnet101"
         num_classes: 10
         pretrained: true
-        lr: 3e-4
-        weight_decay: 1e-3
+        lr: 7e-4
+        weight_decay: 5e-4
         scheduler: "onecycle"
-        label_smoothing: 0.05
-        temperature: 1.0
-        cons_weight: 0.2
-        cp_weight: 0.05
-        max_logit_norm: null
+        label_smoothing: 0.1
+        temperature: 1.3
+        cons_weight: 0.1
+        cp_weight: 0.1
+        max_logit_norm: 8
 
 data:
     original_data_dir: "input/original/train"
     processed_data_dir: "input/processed/train"
     processed_hard_data_dir: "input/processed_hard/train"
     csv_path: "input/driver_imgs_list.csv"
-    batch_size: 128
+    batch_size: 96
     num_workers: 8
     pin_memory: True
     persistent_workers: True
