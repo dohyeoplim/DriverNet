@@ -21,6 +21,7 @@ class DriverDataset(Dataset):
         dataframe: pd.DataFrame,
         original_root_dir: Path,
         processed_root_dir: Optional[Path] = None,
+        processed_hard_root_dir: Optional[Path] = None,
         class_to_idx: Optional[Dict[str, int]] = None,
         transform: Optional[transforms.Compose] = None,
         processed_transform: Optional[transforms.Compose] = None,
@@ -31,6 +32,7 @@ class DriverDataset(Dataset):
         self.df = dataframe.reset_index(drop=True)
         self.original_root_dir = original_root_dir
         self.processed_root_dir = processed_root_dir
+        self.processed_hard_root_dir = processed_hard_root_dir
         self.class_to_idx = class_to_idx
         self.transform = transform
         self.processed_transform = processed_transform
@@ -64,26 +66,38 @@ class DriverDataset(Dataset):
                 processed_image = Image.open(processed_image_path).convert("RGB")
                 if self.processed_transform:
                     processed_image = self.processed_transform(processed_image)
+        else:
+            processed_image = original_image.clone() if isinstance(original_image, torch.Tensor) else original_image
 
-        has_proc = processed_image is not None
+        processed_hard_image = None
+        if self.processed_hard_root_dir:
+            processed_hard_image_path = self.processed_hard_root_dir / class_name / f"{Path(img_name).stem}_processed.png"
+            if processed_hard_image_path.exists():
+                processed_hard_image = Image.open(processed_hard_image_path).convert("RGB")
+                if self.processed_transform:
+                    processed_hard_image = self.processed_transform(processed_hard_image)
+        else:
+            processed_hard_image = original_image.clone() if isinstance(original_image, torch.Tensor) else original_image
 
-        if random.random() < self.flip_p:
-            assert isinstance(original_image, torch.Tensor)
-            original_image = torch.flip(original_image, dims=[2])
-            if has_proc:
-                assert isinstance(processed_image, torch.Tensor)
-                processed_image = torch.flip(processed_image, dims=[2])
+        # has_proc = processed_image is not None
 
-            if label in FLIP_REMAP:
-                label = FLIP_REMAP[label]
+        # if random.random() < self.flip_p:
+        #     assert isinstance(original_image, torch.Tensor)
+        #     original_image = torch.flip(original_image, dims=[2])
+        #     if has_proc:
+        #         assert isinstance(processed_image, torch.Tensor)
+        #         processed_image = torch.flip(processed_image, dims=[2])
 
-        if not has_proc:
-            assert isinstance(original_image, torch.Tensor)
-            processed_image = original_image.clone()
+        #     if label in FLIP_REMAP:
+        #         label = FLIP_REMAP[label]
+
+        # if not has_proc:
+        #     assert isinstance(original_image, torch.Tensor)
+        #     processed_image = original_image.clone()
 
         return {
             "pixel_values": original_image,
             "pixel_values_proc": processed_image,
-            "has_proc": torch.tensor(has_proc),
+            "pixel_values_proc_hard": processed_hard_image, 
             "labels": torch.tensor(label, dtype=torch.long),
         }

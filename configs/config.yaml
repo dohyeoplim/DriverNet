@@ -38,24 +38,23 @@ model:
 data:
     original_data_dir: "input/original/train"
     processed_data_dir: "input/processed/train"
+    processed_hard_data_dir: "input/processed_hard/train"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 128
     num_workers: 8
     pin_memory: True
     persistent_workers: True
+    prefetch_factor: 2
     image_size: 224
-    flip_p: 0.2
+    flip_p: 0
     validation_split: 0.2
 
 data_test:
-    original_data_dir: "input/original/train"
-    processed_data_dir: "input/processed/train"
     predict_dir: "input/original/test"
-    csv_path: "input/driver_imgs_list.csv"
     batch_size: 64
     num_workers: 8
     pin_memory: True
     persistent_workers: True
+    prefetch_factor: 2
     image_size: 224
-    flip_p: 0.2
-    validation_split: 0.2
+    flip_p: 0

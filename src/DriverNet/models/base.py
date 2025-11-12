@@ -67,54 +67,41 @@ class BaseModel(L.LightningModule):
 
     @staticmethod
     def _penalty(probs: torch.Tensor) -> torch.Tensor:
-        # confidence penalty: Σ p log p (<= 0) -> encourages higher entropy
         return (probs * probs.clamp_min(1e-8).log()).sum(dim=-1).mean()
 
     def _step(self, batch, metric: MulticlassAccuracy, prefix: str):
         x0 = batch["pixel_values"]
-        x1 = batch.get("pixel_values_proc")
-        m = batch.get("has_proc")
+        x1 = batch.get("pixel_values_proc", x0)
+        x2 = batch.get("pixel_values_proc_hard", x0)
         y = batch["labels"].long()
 
-        logit0 = self._maybe_clip_logits(self(x0))
-        slogit0 = self._scale(logit0)
-        ce0 = self.ce(slogit0, y)
-        p0 = F.softmax(slogit0, dim=-1)
+        def fwd(x):
+            return self._scale(self._maybe_clip_logits(self(x)))
 
-        logit1 = None
-        if m is None or not bool(m.any()):
-            probs_avg = p0
-            cons = torch.zeros((), device=logit0.device, dtype=logit0.dtype)
-            ce1 = torch.zeros_like(ce0)
-        else:
-            logit1 = self._maybe_clip_logits(self(x1))
-            slogit1 = self._scale(logit1)
-            p1 = F.softmax(slogit1, dim=-1)
-            ce1 = self.ce(slogit1[m], y[m]) if bool(m.any()) else torch.zeros_like(ce0)
-            cons = 0.5 * (
-                F.kl_div(F.log_softmax(slogit0[m], dim=-1), p1[m], reduction="batchmean")
-                + F.kl_div(F.log_softmax(slogit1[m], dim=-1), p0[m], reduction="batchmean")
-            )
-            probs_avg = 0.5 * (p0 + p1)
+        logits = [fwd(x0), fwd(x1), fwd(x2)]
+        probs  = [F.softmax(l, dim=-1) for l in logits]
 
-        cp = self._penalty(probs_avg)
-        loss = ce0 + ce1 + self.cons_weight * cons + self.cp_weight * cp
+        ce_terms = [self.ce(l, y) for l in logits]
+        ce = torch.stack(ce_terms).mean()
+
+        def symmetric_kl(a, b):
+            return 0.5 * (F.kl_div(F.log_softmax(a, dim=-1), F.softmax(b, dim=-1), reduction="batchmean") + F.kl_div(F.log_softmax(b, dim=-1), F.softmax(a, dim=-1), reduction="batchmean"))
+
+        consistency = (symmetric_kl(logits[0], logits[1]) + symmetric_kl(logits[0], logits[2]) + symmetric_kl(logits[1], logits[2])) / 3.0
+
+        probs_avg = torch.stack(probs, dim=0).mean(dim=0)
+        confidence_penalty = self._penalty(probs_avg)
+
+        loss = ce + self.cons_weight * consistency + self.cp_weight * confidence_penalty
 
         metric.update(probs_avg, y)
-
-        sync_dist = prefix != "train"
-        self.log(
-            f"{prefix}/loss",
-            loss,
-            on_step=(prefix == "train"),
-            on_epoch=True,
-            prog_bar=True,
-            sync_dist=sync_dist,
-        )
+        sync_dist = (prefix != "train")
+        self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=sync_dist)
 
         if prefix == "val":
-            base_logits = logit0 if logit1 is None else 0.5 * (logit0 + logit1)
+            base_logits = torch.stack(logits, dim=0).mean(dim=0)
             self.log("val/logloss", self.ce(base_logits, y), on_epoch=True, prog_bar=True, sync_dist=True)
+
         return loss
 
     def training_step(self, batch, batch_idx):

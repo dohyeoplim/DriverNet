@@ -12,31 +12,35 @@ from src.DriverNet.data.Transforms import DriverTransforms
 class DriverDataModule(L.LightningDataModule):
     def __init__(
         self,
-        original_data_dir: str,
-        processed_data_dir: str,
-        csv_path: Optional[str],
         batch_size: int,
         num_workers: int,
         persistent_workers: bool,
         pin_memory: bool,
+        prefetch_factor: int,
         image_size: int,
         flip_p: float,
-        validation_split: float,
+        validation_split: Optional[float],
+        original_data_dir: Optional[str] = None,
+        processed_data_dir: Optional[str] = None,
+        processed_hard_data_dir: Optional[str] = None,
+        csv_path: Optional[str] = None,
         predict_dir: Optional[str] = None,
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.original_data_dir = Path(original_data_dir)
-        self.processed_data_dir = Path(processed_data_dir)
+        self.original_data_dir = Path(original_data_dir) if original_data_dir else None
+        self.processed_data_dir = Path(processed_data_dir) if processed_data_dir else None
+        self.processed_hard_data_dir = Path(processed_hard_data_dir) if processed_hard_data_dir else None
+        self.predict_dir = Path(predict_dir) if predict_dir else None
         self.csv_path = csv_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.persistent_workers = persistent_workers
         self.pin_memory = pin_memory
+        self.prefetch_factor = prefetch_factor if prefetch_factor else None
         self.image_size = image_size
         self.flip_p = flip_p
         self.validation_split = validation_split
-        self.predict_dir = Path(predict_dir) if predict_dir else None
 
         self._tf = DriverTransforms(img_size=image_size)
 
@@ -46,6 +50,8 @@ class DriverDataModule(L.LightningDataModule):
         self.class_to_idx: Dict[str, int] = {}
 
     def prepare_data(self):
+        if self.original_data_dir is None or self.processed_data_dir is None or self.processed_hard_data_dir is None:
+            raise ValueError("Data directories must be provided.")
         if not self.original_data_dir.exists() or not self.processed_data_dir.exists():
             raise FileNotFoundError("Dataset folder not found. Run `uv run main.py --download-dataset` first.")
 
@@ -69,6 +75,8 @@ class DriverDataModule(L.LightningDataModule):
             return
 
         if self.train_ds is None or self.val_ds is None:
+            assert self.original_data_dir is not None
+
             if not self.csv_path or not Path(self.csv_path).exists():
                 raise FileNotFoundError(f"CSV file not found: {self.csv_path}")
 
@@ -76,29 +84,34 @@ class DriverDataModule(L.LightningDataModule):
             classes = sorted(df["classname"].unique())
             self.class_to_idx = {cls: i for i, cls in enumerate(classes)}
 
+            assert self.validation_split is not None
+
             train_df, val_df = train_test_split(
                 df,
                 test_size=self.validation_split,
                 random_state=42,
-                stratify=df["classname"],
+                # stratify=df["classname"],
+                stratify=df["subject"]
             )
 
             train_tf = self._tf.get_transforms(train=True)
             val_tf = self._tf.get_transforms(train=False)
 
             self.train_ds = DriverDataset(
-                dataframe=train_df.reset_index(drop=True),
+                dataframe=pd.DataFrame(train_df, index=range(len(train_df))),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
+                processed_hard_root_dir=self.processed_hard_data_dir,
                 class_to_idx=self.class_to_idx,
                 transform=train_tf,
                 processed_transform=val_tf,
                 flip_p=self.flip_p,
             )
             self.val_ds = DriverDataset(
-                dataframe=val_df.reset_index(drop=True),
+                dataframe=pd.DataFrame(val_df, index=range(len(val_df))),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
+                processed_hard_root_dir=self.processed_hard_data_dir,
                 class_to_idx=self.class_to_idx,
                 transform=val_tf,
                 processed_transform=val_tf,
@@ -114,6 +127,7 @@ class DriverDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
+            prefetch_factor=self.prefetch_factor,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -125,6 +139,7 @@ class DriverDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
+            prefetch_factor=self.prefetch_factor,
         )
 
     def predict_dataloader(self) -> DataLoader:
@@ -136,6 +151,7 @@ class DriverDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
+            prefetch_factor=self.prefetch_factor,
         )
 
     def get_test_image_names(self) -> list[str]:
