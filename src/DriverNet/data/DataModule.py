@@ -19,7 +19,7 @@ class DriverDataModule(L.LightningDataModule):
         prefetch_factor: int,
         image_size: int,
         flip_p: float,
-        validation_split: Optional[float],
+        validation_split: Optional[float] = None,
         original_data_dir: Optional[str] = None,
         processed_data_dir: Optional[str] = None,
         processed_hard_data_dir: Optional[str] = None,
@@ -50,10 +50,8 @@ class DriverDataModule(L.LightningDataModule):
         self.class_to_idx: Dict[str, int] = {}
 
     def prepare_data(self):
-        if self.original_data_dir is None or self.processed_data_dir is None or self.processed_hard_data_dir is None:
-            raise ValueError("Data directories must be provided.")
-        if not self.original_data_dir.exists() or not self.processed_data_dir.exists():
-            raise FileNotFoundError("Dataset folder not found. Run `uv run main.py --download-dataset` first.")
+        if not any([self.original_data_dir, self.processed_data_dir, self.processed_hard_data_dir, self.predict_dir]):
+            raise ValueError("At least one data directory must be provided.")
 
     def setup(self, stage: Optional[str] = None):
         if stage == "predict":
@@ -110,15 +108,22 @@ class DriverDataModule(L.LightningDataModule):
                 processed_transform=val_tf,
                 flip_p=self.flip_p,
             )
+            # self.val_ds = DriverDataset(
+            #     dataframe=val_df.reset_index(drop=True),
+            #     original_root_dir=self.original_data_dir,
+            #     processed_root_dir=self.processed_data_dir,
+            #     processed_hard_root_dir=self.processed_hard_data_dir,
+            #     class_to_idx=self.class_to_idx,
+            #     transform=val_tf,
+            #     processed_transform=val_tf,
+            #     flip_p=0.0,
+            # )
             self.val_ds = DriverDataset(
                 dataframe=val_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
-                processed_root_dir=self.processed_data_dir,
-                processed_hard_root_dir=self.processed_hard_data_dir,
                 class_to_idx=self.class_to_idx,
                 transform=val_tf,
-                processed_transform=val_tf,
-                flip_p=0.0,
+                is_val=True,
             )
 
     def train_dataloader(self) -> DataLoader:
