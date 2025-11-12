@@ -22,7 +22,7 @@ def _build_callbacks(monitor: str, mode: str, prefix: str):
         monitor=monitor,
         mode=mode,
         patience=3,
-        min_delta=1e-4,
+        min_delta=1e-3,
         check_finite=True,
         verbose=True,
     )
