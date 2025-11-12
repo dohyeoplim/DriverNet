@@ -14,13 +14,14 @@ model:
         name: "vit_vit_b_16"
         num_classes: 10
         pretrained: true
-        lr: 3e-4
-        weight_decay: 5e-4
+        lr: 2e-5
+        weight_decay: 0.05
         scheduler: "onecycle"
-        label_smoothing: 0.05
-        cons_weight: 0.2
-        cp_weight: 0.05
-        max_logit_norm: null
+        label_smoothing: 0.1
+        temperature: 1.6
+        cons_weight: 0.06
+        cp_weight: 0.12
+        max_logit_norm: 6
 
     student:
         name: "resnet101"
