@@ -94,11 +94,14 @@ class DriverDataModule(L.LightningDataModule):
                 stratify=df["subject"]
             )
 
+            assert isinstance(train_df, pd.DataFrame)
+            assert isinstance(val_df, pd.DataFrame)
+
             train_tf = self._tf.get_transforms(train=True)
             val_tf = self._tf.get_transforms(train=False)
 
             self.train_ds = DriverDataset(
-                dataframe=pd.DataFrame(train_df, index=range(len(train_df))),
+                dataframe=train_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
                 processed_hard_root_dir=self.processed_hard_data_dir,
@@ -108,7 +111,7 @@ class DriverDataModule(L.LightningDataModule):
                 flip_p=self.flip_p,
             )
             self.val_ds = DriverDataset(
-                dataframe=pd.DataFrame(val_df, index=range(len(val_df))),
+                dataframe=val_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
                 processed_root_dir=self.processed_data_dir,
                 processed_hard_root_dir=self.processed_hard_data_dir,

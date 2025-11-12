@@ -29,10 +29,10 @@ model:
         lr: 3e-4
         weight_decay: 1e-3
         scheduler: "onecycle"
-        label_smoothing: 0.0
-        temperature: 0.5
+        label_smoothing: 0.05
+        temperature: 1.0
         cons_weight: 0.2
-        cp_weight: 0.03
+        cp_weight: 0.05
         max_logit_norm: null
 
 data:
