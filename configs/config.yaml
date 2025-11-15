@@ -3,51 +3,31 @@ global:
     out_dir: "output"
 
 trainer:
-    max_epochs: 10
+    max_epochs: 20
     accelerator: auto
     devices: auto
     precision: "bf16-mixed"
     strategy: "auto"
 
 model:
-    teacher:
-        name: "vit_vit_b_16"
-        num_classes: 10
-        pretrained: true
-        lr: 2e-5
-        weight_decay: 0.05
-        scheduler: "onecycle"
-        label_smoothing: 0.1
-        temperature: 1.6
-        cons_weight: 0.06
-        cp_weight: 0.12
-        max_logit_norm: 6
-
-    student:
-        name: "resnet101"
-        num_classes: 10
-        pretrained: true
-        lr: 1e-4
-        weight_decay: 1e-3
-        scheduler: "onecycle"
-        label_smoothing: 0.05
-        temperature: 1.0
-        cons_weight: 0.2
-        cp_weight: 0.05
-        max_logit_norm: null
-
-    mean_teacher:
-        name: "resnet101"
-        num_classes: 10
-        pretrained: true
-        lr: 1e-4
-        weight_decay: 1e-3
-        scheduler: "onecycle"
-        label_smoothing: 0.05
-        temperature: 1.0
-        cons_weight: 0.2
-        cp_weight: 0.05
-        max_logit_norm: null
+    _target_: src.DriverNet.models.base.BaseModel
+    name: "vit_vit_b_16"
+    num_classes: 10
+    pretrained: true
+    lr: 2e-5
+    weight_decay: 0.05
+    scheduler: "onecycle"
+    label_smoothing: 0.1
+    cons_weight: 0.1
+    ce_x1_weight: 0.5
+    max_logit_norm: 6.0
+    ema_decay: 0.998
+    ema_warmup_steps: 200
+    teacher_entropy_weight: 1.2
+    student_error_weight: 1.0
+    kd_temperature: 2.5
+    kd_x1_weight: 1.0
+    kd_x2_weight: 0.3
 
 data:
     original_data_dir: "input/original/train"
