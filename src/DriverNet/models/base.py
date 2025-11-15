@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn.functional as F
+import kornia.augmentation as K
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 from torchmetrics.classification import MulticlassAccuracy
@@ -9,6 +10,7 @@ import math
 
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
+from src.DriverNet.data.Transforms import Augmentations
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
 from src.DriverNet.utils.ema import EMA
 from src.DriverNet.utils.losses import (
@@ -37,6 +39,8 @@ class BaseModel(L.LightningModule):
         kd_temperature: float = 2.0,
         kd_x1_weight: float = 1.0,
         kd_x2_weight: float = 0.3,
+        augment_on_gpu: bool = True,
+        image_size: int = 224,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -58,6 +62,8 @@ class BaseModel(L.LightningModule):
         self.kd_temperature = kd_temperature
         self.kd_x1_weight = kd_x1_weight
         self.kd_x2_weight = kd_x2_weight
+        self.augment_on_gpu = augment_on_gpu
+        self.image_size = image_size
 
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
@@ -70,6 +76,10 @@ class BaseModel(L.LightningModule):
         self.val_acc_student = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_teacher = MulticlassAccuracy(num_classes=self.num_classes)
 
+        if self.augment_on_gpu:
+            self.augmentations = Augmentations(self.image_size)
+
+        self._IMGNET_NORMALIZE = K.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._max_entropy = math.log(self.num_classes)
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
@@ -95,6 +105,16 @@ class BaseModel(L.LightningModule):
         x1 = batch.get("pixel_values_proc", x0)
         x2 = batch.get("pixel_values_proc_hard", x0)
         y = batch["labels"].long()
+
+        if self.augment_on_gpu and self.training:
+            x0 = self.augmentations(x0)
+            x1 = self._IMGNET_NORMALIZE(x1)
+            x2 = self._IMGNET_NORMALIZE(x2)
+        elif not self.augment_on_gpu and self.training:
+            pass
+        elif not self.training:
+            pass
+
 
         def fwd(model, x):
             return self._maybe_clip_logits(model(x))

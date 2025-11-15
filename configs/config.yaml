@@ -10,7 +10,6 @@ trainer:
     strategy: "auto"
 
 model:
-    _target_: src.DriverNet.models.base.BaseModel
     name: "resnet101"
     num_classes: 10
     pretrained: true

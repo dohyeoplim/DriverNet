@@ -1,46 +1,55 @@
+import torch.nn as nn
+import kornia.augmentation as K
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
+
+class Augmentations(nn.Module):
+    def __init__(self, img_size: int):
+        super().__init__()
+        self.img_size = img_size
+        self.augmentations = K.AugmentationSequential(
+            K.RandomResizedCrop((img_size, img_size), scale=(0.75, 1.0), p=1.0),
+            K.RandomHorizontalFlip(p=0.5),
+            K.ColorJitter(
+                brightness=(0.7, 1.3),
+                contrast=(0.7, 1.3),
+                saturation=(0.5, 1.5),
+                hue=(-0.08, 0.08),
+                p=0.8,
+            ),
+            K.RandomAffine(
+                degrees=(-15, 15),
+                translate=(0.1, 0.1),
+                scale=(0.85, 1.15),
+                shear=(-8, 8),
+                p=0.8,
+            ),
+            K.RandomPerspective(distortion_scale=0.2, p=0.5),
+            K.RandomGaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.5), p=0.5),
+            K.RandomSolarize(thresholds=0.5, p=0.1),
+            K.RandomErasing(p=0.2, scale=(0.02, 0.2)),
+            K.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            data_keys=["input"],
+        )
+
+    def forward(self, x):
+        return self.augmentations(x)
 
 class DriverTransforms:
     def __init__(self, img_size):
         self.img_size = img_size
 
     def get_transforms(self, train: bool = True):
-        IMGNET_MEAN = [0.485, 0.456, 0.406]
-        IMGNET_STD = [0.229, 0.224, 0.225]
-
         if train:
-            train_tf = transforms.Compose([
-                transforms.RandomResizedCrop(self.img_size, scale=(0.8, 1.0), interpolation=InterpolationMode.BICUBIC),
-                transforms.ColorJitter(
-                    brightness=(0.75, 1.25),
-                    contrast=(0.75, 1.25),
-                    saturation=(0.5, 1.5),
-                    hue=(-0.05, 0.05)
-                ),
-                transforms.RandomAffine(
-                    degrees=(-10, 10),
-                    translate=(0.1, 0.1),
-                    scale=(0.9, 1.1),
-                    shear=(-5, 5)
-                ),
-                transforms.RandomPerspective(
-                    distortion_scale=0.15,
-                    p=0.5,
-                    fill=0
-                ),
-                transforms.GaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.0)),
-                transforms.RandomSolarize(threshold=128, p=0.1),
+            return transforms.Compose([
+                transforms.Resize(self.img_size, interpolation=InterpolationMode.BICUBIC),
+                transforms.CenterCrop(self.img_size),
                 transforms.ToTensor(),
-                transforms.Normalize(IMGNET_MEAN, IMGNET_STD),
             ])
-            return train_tf
-
         else:
-            val_tf = transforms.Compose([
+            return transforms.Compose([
                 transforms.Resize(int(self.img_size * 1.14), interpolation=InterpolationMode.BICUBIC),
                 transforms.CenterCrop(self.img_size),
                 transforms.ToTensor(),
-                transforms.Normalize(IMGNET_MEAN, IMGNET_STD),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
-            return val_tf
