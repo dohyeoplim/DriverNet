@@ -19,7 +19,7 @@ def _build_callbacks(monitor: str, mode: str, prefix: str):
     earlyStopping = EarlyStopping(
         monitor=monitor,
         mode=mode,
-        patience=3,
+        patience=4,
         min_delta=1e-4,
         check_finite=True,
         verbose=True,
