@@ -3,7 +3,7 @@ global:
     out_dir: "output"
 
 trainer:
-    max_epochs: 20
+    max_epochs: 15
     accelerator: auto
     devices: auto
     precision: "bf16-mixed"
