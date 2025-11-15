@@ -13,17 +13,17 @@ model:
     name: "resnet50"
     num_classes: 10
     pretrained: true
-    lr: 5e-6
+    lr: 1e-5
     weight_decay: 0.1
     scheduler: "onecycle"
     label_smoothing: 0.15
-    cons_weight: 0.3
-    ce_x1_weight: 0.5
-    max_logit_norm: 6.0
+    cons_weight: 0.0
+    ce_x1_weight: 0.0
+    max_logit_norm: null
     ema_decay: 0.999
     ema_warmup_steps: 200
-    teacher_entropy_weight: 1.5
-    student_error_weight: 1.2
+    teacher_entropy_weight: 0.0
+    student_error_weight: 0.0
     kd_temperature: 2.5
     kd_x1_weight: 1.0
     kd_x2_weight: 0.3
