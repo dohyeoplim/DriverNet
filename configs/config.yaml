@@ -11,7 +11,7 @@ trainer:
 
 model:
     _target_: src.DriverNet.models.base.BaseModel
-    name: "vit_vit_b_16"
+    name: "resnet101"
     num_classes: 10
     pretrained: true
     lr: 2e-5
