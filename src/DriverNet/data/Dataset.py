@@ -2,6 +2,7 @@ import random
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import cv2
 import pandas as pd
 import torch
 from PIL import Image
@@ -41,8 +42,9 @@ class DriverDataset(Dataset):
         return len(self.df)
 
     def _open_rgb(self, p: Path) -> Image.Image:
-        with Image.open(p) as im:
-            return im.convert("RGB")
+        img = cv2.imread(str(p))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(img)
 
     def _to_tensor(self, img: Image.Image, tfm: Optional[transforms.Compose]) -> torch.Tensor:
         x = (tfm or self._default_to_tensor)(img)
