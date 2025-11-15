@@ -3,6 +3,7 @@ from omegaconf import OmegaConf, DictConfig
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
+from src.DriverNet.models.mean_teacher import MeanTeacherModel
 from src.DriverNet.utils.submission import create_submission
 
 def test(what: str, checkpoint_path: str | None = None) -> None:
@@ -19,6 +20,12 @@ def test(what: str, checkpoint_path: str | None = None) -> None:
             model = Student.load_from_checkpoint(checkpoint_path)
         else:
             model = Student(**cfg.model.student)
+    elif what == "mean_teacher":
+        if checkpoint_path:
+            model = MeanTeacherModel.load_from_checkpoint(checkpoint_path)
+        else:
+            model = MeanTeacherModel(**cfg.model.mean_teacher)
+
     else:
         raise ValueError(f"Unknown model type: {what!r}")
 

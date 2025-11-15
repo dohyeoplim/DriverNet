@@ -5,6 +5,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.teacher import Teacher
 from src.DriverNet.models.student import Student
+from src.DriverNet.models.mean_teacher import MeanTeacherModel
 from src.DriverNet.utils.logger import wandb_logger
 
 
@@ -38,6 +39,9 @@ def train(what: str) -> str:
     elif what == "student":
         model = Student(**cfg.model.student)
         callbacks = _build_callbacks(monitor="val/logloss", mode="min", prefix="student")
+    elif what == "mean_teacher":
+        model = MeanTeacherModel(**cfg.model.mean_teacher)
+        callbacks = _build_callbacks(monitor="val/logloss", mode="min", prefix="mean_teacher")
     else:
         raise ValueError(f"Unknown model type: {what}")
 

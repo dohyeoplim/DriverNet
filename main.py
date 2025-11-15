@@ -16,9 +16,9 @@ warnings.filterwarnings("ignore", message=".*TF32.*")
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
     p.add_argument("--download-dataset", action="store_true", help="Download dataset from Kaggle")
-    p.add_argument("--train", choices=["teacher", "student"], help="Train [teacher/student] model")
-    p.add_argument("--test", choices=["teacher", "student"], help="Test [teacher/student] model")
-    p.add_argument("--train-and-submit", choices=["teacher", "student"], help="Train and submit [teacher/student] model")
+    p.add_argument("--train", help="Train [teacher/student] model")
+    p.add_argument("--test", help="Test [teacher/student] model")
+    p.add_argument("--train-and-submit", help="Train and submit [teacher/student] model")
     p.add_argument("--checkpoint-path", type=str, default=None)
     return p.parse_args()
 
