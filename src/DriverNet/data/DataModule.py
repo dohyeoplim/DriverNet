@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Optional
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 from torch.utils.data import DataLoader
 
 from src.DriverNet.data.Dataset import DriverDataset
@@ -84,13 +84,10 @@ class DriverDataModule(L.LightningDataModule):
 
             assert self.validation_split is not None
 
-            train_df, val_df = train_test_split(
-                df,
-                test_size=self.validation_split,
-                random_state=42,
-                # stratify=df["classname"],
-                stratify=df["subject"]
-            )
+            gss = GroupShuffleSplit(n_splits=1, test_size=self.validation_split, random_state=42)
+            train_idx, val_idx = next(gss.split(df, groups=df["subject"]))
+            train_df = df.iloc[train_idx]
+            val_df = df.iloc[val_idx]
 
             assert isinstance(train_df, pd.DataFrame)
             assert isinstance(val_df, pd.DataFrame)
@@ -108,16 +105,7 @@ class DriverDataModule(L.LightningDataModule):
                 processed_transform=val_tf,
                 flip_p=self.flip_p,
             )
-            # self.val_ds = DriverDataset(
-            #     dataframe=val_df.reset_index(drop=True),
-            #     original_root_dir=self.original_data_dir,
-            #     processed_root_dir=self.processed_data_dir,
-            #     processed_hard_root_dir=self.processed_hard_data_dir,
-            #     class_to_idx=self.class_to_idx,
-            #     transform=val_tf,
-            #     processed_transform=val_tf,
-            #     flip_p=0.0,
-            # )
+
             self.val_ds = DriverDataset(
                 dataframe=val_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
