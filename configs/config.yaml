@@ -17,16 +17,10 @@ model:
     weight_decay: 0.1
     scheduler: "onecycle"
     label_smoothing: 0.15
-    cons_weight: 0.0
-    ce_x1_weight: 0.0
     max_logit_norm: null
     ema_decay: 0.999
     ema_warmup_steps: 200
-    teacher_entropy_weight: 0.0
-    student_error_weight: 0.0
-    kd_temperature: 2.5
-    kd_x1_weight: 1.0
-    kd_x2_weight: 0.3
+    kd_temperature: 1.5
 
 data:
     original_data_dir: "input/original/train"

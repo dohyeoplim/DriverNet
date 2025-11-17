@@ -29,16 +29,10 @@ class BaseModel(L.LightningModule):
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
         label_smoothing: float = 0,
-        cons_weight: float = 0.2,
-        ce_x1_weight: float = 0.5,
         max_logit_norm: Optional[float] = None,
         ema_decay: float = 0.996,
         ema_warmup_steps: int = 100,
-        teacher_entropy_weight: float = 1.0,
-        student_error_weight: float = 1.0,
         kd_temperature: float = 2.0,
-        kd_x1_weight: float = 1.0,
-        kd_x2_weight: float = 0.3,
         augment_on_gpu: bool = True,
         image_size: int = 224,
     ):
@@ -52,16 +46,10 @@ class BaseModel(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler = scheduler
         self.label_smoothing = label_smoothing
-        self.cons_weight = cons_weight
-        self.ce_x1_weight = ce_x1_weight
         self.max_logit_norm = max_logit_norm
         self.ema_decay = ema_decay
         self.ema_warmup_steps = ema_warmup_steps
-        self.teacher_entropy_weight = teacher_entropy_weight
-        self.student_error_weight = student_error_weight
         self.kd_temperature = kd_temperature
-        self.kd_x1_weight = kd_x1_weight
-        self.kd_x2_weight = kd_x2_weight
         self.augment_on_gpu = augment_on_gpu
         self.image_size = image_size
 
@@ -110,14 +98,9 @@ class BaseModel(L.LightningModule):
             x0 = self.augmentations(x0)
             x1 = self._IMGNET_NORMALIZE(x1)
             x2 = self._IMGNET_NORMALIZE(x2)
-        elif not self.augment_on_gpu and self.training:
-            pass
-        elif not self.training:
-            pass
 
-
-        def fwd(model, x):
-            return self._maybe_clip_logits(model(x))
+        def fwd(m, x):
+            return self._maybe_clip_logits(m(x))
 
         student_logits_x0 = fwd(self.model, x0)
         student_logits_x1 = fwd(self.model, x1)
@@ -131,15 +114,13 @@ class BaseModel(L.LightningModule):
             teacher_logits_x0,
             y,
             self.num_classes,
-            self.teacher_entropy_weight,
-            self.student_error_weight,
             self.label_smoothing,
         )
 
-        ce_x0_per_sample = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing, reduction='none')
+        ce_x0_per_sample = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing, reduction="none")
         ce_x0 = (ce_x0_per_sample * sample_weights).mean()
         ce_x1 = F.cross_entropy(student_logits_x1, y, label_smoothing=self.label_smoothing)
-        ce_loss = ce_x0 + self.ce_x1_weight * ce_x1
+        ce_loss = 0.5 * (ce_x0 + ce_x1)
 
         kd_x0 = kl_div_with_temperature(student_logits_x0, teacher_logits_x0, self.kd_temperature)
         kd_x1 = kl_div_with_temperature(student_logits_x1, teacher_logits_x0, self.kd_temperature)
@@ -151,11 +132,9 @@ class BaseModel(L.LightningModule):
 
         kd_x2 = entropy_gated_kd(student_logits_x2, teacher_logits_x0, self.kd_temperature, normalized_entropy)
 
-        consistency_loss = (
-            kd_x0 + self.kd_x1_weight * kd_x1 + self.kd_x2_weight * kd_x2
-        ) / (1 + self.kd_x1_weight + self.kd_x2_weight)
+        consistency_loss = (kd_x0 + kd_x1 + kd_x2) / 3.0
 
-        loss = ce_loss + self.cons_weight * consistency_loss
+        loss = ce_loss + consistency_loss
 
         sync_dist = prefix != "train"
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=sync_dist)
@@ -169,10 +148,8 @@ class BaseModel(L.LightningModule):
             teacher_probs = F.softmax(teacher_logits_x0, dim=-1)
             self.val_acc_student.update(student_probs, y)
             self.val_acc_teacher.update(teacher_probs, y)
-
-            val_nll = F.nll_loss((teacher_probs.clamp_min(1e-8)).log(), y)
-            self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
-
+            val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
+            self.log( "val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def training_step(self, batch, batch_idx):
