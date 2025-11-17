@@ -149,7 +149,7 @@ class BaseModel(L.LightningModule):
             self.val_acc_student.update(student_probs, y)
             self.val_acc_teacher.update(teacher_probs, y)
             val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
-            self.log( "val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -191,9 +191,9 @@ class BaseModel(L.LightningModule):
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                pct_start=0.25,
-                div_factor=25.0,
-                final_div_factor=1e3,
+                pct_start=0.1,
+                div_factor=10.0,
+                final_div_factor=100.0,
                 anneal_strategy="cos",
             )
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}

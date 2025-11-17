@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Optional
 
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 from torch.utils.data import DataLoader
 
 from src.DriverNet.data.Dataset import DriverDataset
@@ -82,15 +82,20 @@ class DriverDataModule(L.LightningDataModule):
             classes = sorted(df["classname"].unique())
             self.class_to_idx = {cls: i for i, cls in enumerate(classes)}
 
-            assert self.validation_split is not None
+            if self.validation_split is None or not (0.0 < self.validation_split < 0.5):
+                raise ValueError("validation_split must be set to a value in (0, 0.5).")
 
-            gss = GroupShuffleSplit(n_splits=1, test_size=self.validation_split, random_state=42)
-            train_idx, val_idx = next(gss.split(df, groups=df["subject"]))
+            n_splits = int(round(1.0 / self.validation_split))
+            n_splits = max(2, n_splits)
+
+            sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
+            X = df.index.values
+            y = df["classname"].values
+            groups = df["subject"].values
+            train_idx, val_idx = next(sgkf.split(X, y, groups))
+
             train_df = df.iloc[train_idx]
             val_df = df.iloc[val_idx]
-
-            assert isinstance(train_df, pd.DataFrame)
-            assert isinstance(val_df, pd.DataFrame)
 
             train_tf = self._tf.get_transforms(train=True)
             val_tf = self._tf.get_transforms(train=False)
