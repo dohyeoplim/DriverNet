@@ -96,8 +96,8 @@ class BaseModel(L.LightningModule):
 
         if self.augment_on_gpu and self.training:
             x0 = self.augmentations(x0)
-            x1 = self._IMGNET_NORMALIZE(x1)
-            x2 = self._IMGNET_NORMALIZE(x2)
+        elif self.training:
+            x0 = self._IMGNET_NORMALIZE(x0)
 
         def fwd(m, x):
             return self._maybe_clip_logits(m(x))
