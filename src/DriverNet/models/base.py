@@ -1,5 +1,6 @@
 import lightning as L
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import kornia.augmentation as K
 from torch.optim import AdamW
@@ -29,8 +30,9 @@ class BaseModel(L.LightningModule):
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
         label_smoothing: float = 0,
+        consistency_weight: float = 0.5,
         max_logit_norm: Optional[float] = None,
-        ema_decay: float = 0.996,
+        ema_decay: float = 0.999,
         ema_warmup_steps: int = 100,
         kd_temperature: float = 2.0,
         augment_on_gpu: bool = True,
@@ -46,6 +48,7 @@ class BaseModel(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler = scheduler
         self.label_smoothing = label_smoothing
+        self.consistency_weight = consistency_weight
         self.max_logit_norm = max_logit_norm
         self.ema_decay = ema_decay
         self.ema_warmup_steps = ema_warmup_steps
@@ -90,8 +93,8 @@ class BaseModel(L.LightningModule):
 
     def _step(self, batch, prefix: str):
         x0 = batch["pixel_values"]
-        x1 = batch.get("pixel_values_proc", x0)
-        x2 = batch.get("pixel_values_proc_hard", x0)
+        x1 = batch.get("pixel_values_proc")
+        x2 = batch.get("pixel_values_proc_hard")
         y = batch["labels"].long()
 
         if self.augment_on_gpu and self.training:
@@ -99,42 +102,54 @@ class BaseModel(L.LightningModule):
         elif self.training:
             x0 = self._IMGNET_NORMALIZE(x0)
 
-        def fwd(m, x):
+        def fwd(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
             return self._maybe_clip_logits(m(x))
 
         student_logits_x0 = fwd(self.model, x0)
-        student_logits_x1 = fwd(self.model, x1)
-        student_logits_x2 = fwd(self.model, x2)
+        student_logits_x1 = fwd(self.model, x1) if x1 is not None else None
+        student_logits_x2 = fwd(self.model, x2) if x2 is not None else None
 
         with torch.no_grad():
             teacher_logits_x0 = fwd(self.teacher, x0)
 
-        sample_weights = get_hard_example_weights(
+        ce_terms = []
+
+        ce_x0 = F.cross_entropy(
             student_logits_x0,
-            teacher_logits_x0,
             y,
-            self.num_classes,
-            self.label_smoothing,
+            label_smoothing=self.label_smoothing,
         )
+        ce_terms.append(ce_x0)
 
-        ce_x0_per_sample = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing, reduction="none")
-        ce_x0 = (ce_x0_per_sample * sample_weights).mean()
-        ce_x1 = F.cross_entropy(student_logits_x1, y, label_smoothing=self.label_smoothing)
-        ce_loss = 0.5 * (ce_x0 + ce_x1)
+        if student_logits_x1 is not None:
+            ce_x1 = F.cross_entropy(
+                student_logits_x1,
+                y,
+                label_smoothing=self.label_smoothing,
+            )
+            ce_terms.append(ce_x1)
 
-        kd_x0 = kl_div_with_temperature(student_logits_x0, teacher_logits_x0, self.kd_temperature)
-        kd_x1 = kl_div_with_temperature(student_logits_x1, teacher_logits_x0, self.kd_temperature)
+        ce_loss = torch.stack(ce_terms).mean()
 
-        with torch.no_grad():
-            teacher_probs_x0 = F.softmax(teacher_logits_x0, dim=-1)
-            teacher_entropy = -torch.sum(teacher_probs_x0 * torch.log(teacher_probs_x0.clamp_min(1e-8)), dim=1)
-            normalized_entropy = teacher_entropy / self._max_entropy
+        def kl_to_anchor(anchor_logits: torch.Tensor, other_logits: torch.Tensor) -> torch.Tensor:
+            anchor_probs = F.softmax(anchor_logits.detach(), dim=-1)
+            other_log_probs = F.log_softmax(other_logits, dim=-1)
+            return F.kl_div(other_log_probs, anchor_probs, reduction="batchmean")
 
-        kd_x2 = entropy_gated_kd(student_logits_x2, teacher_logits_x0, self.kd_temperature, normalized_entropy)
+        consistency_terms = []
 
-        consistency_loss = (kd_x0 + kd_x1 + kd_x2) / 3.0
+        if student_logits_x1 is not None:
+            consistency_terms.append(kl_to_anchor(student_logits_x0, student_logits_x1))
 
-        loss = ce_loss + consistency_loss
+        if student_logits_x2 is not None:
+            consistency_terms.append(kl_to_anchor(student_logits_x0, student_logits_x2))
+
+        if consistency_terms:
+            consistency_loss = torch.stack(consistency_terms).mean()
+        else:
+            consistency_loss = torch.zeros((), device=student_logits_x0.device)
+
+        loss = ce_loss + self.consistency_weight * consistency_loss
 
         sync_dist = prefix != "train"
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=sync_dist)
