@@ -1,17 +1,16 @@
 import argparse
 from pathlib import Path
 import torch
+import warnings
+
+warnings.filterwarnings("ignore", message=".*TF32.*")
+warnings.filterwarnings("ignore", message=".*Checkpoint directory*")
+warnings.filterwarnings("ignore", message=".*Precision bf16-mixed is not supported by the model summary.*")
 
 torch.set_float32_matmul_precision("high")
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
+torch.backends.cuda.matmul.fp32_precision = "ieee"
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = False
-
-import os
-import warnings
-os.environ["PYTHONWARNINGS"] = "ignore:.*TF32.*"
-warnings.filterwarnings("ignore", message=".*TF32.*")
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="DriverNet")
