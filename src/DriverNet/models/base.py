@@ -153,7 +153,18 @@ class BaseModel(L.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
-        return self._step(batch, "train")
+        loss = self._step(batch, "train")
+
+        opt = self.optimizers()
+        if isinstance(opt, list):
+            opt = opt[0]
+
+        if hasattr(opt, "param_groups") and len(opt.param_groups) > 0:
+            lr = opt.param_groups[0].get("lr", None)
+            if lr is not None:
+                self.log("lr", lr, on_step=True, on_epoch=False, prog_bar=True, sync_dist=False)
+
+        return loss
 
     def validation_step(self, batch, batch_idx):
         self._step(batch, "val")
@@ -191,11 +202,12 @@ class BaseModel(L.LightningModule):
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                pct_start=0.1,
-                div_factor=10.0,
-                final_div_factor=100.0,
+                pct_start=0.05,
+                div_factor=25.0,
+                final_div_factor=50,
                 anneal_strategy="cos",
             )
+
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}
 
         return opt
