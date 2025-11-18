@@ -26,8 +26,10 @@ def load_vgg(
 
     m = ctor(weights=weights)
 
-    assert isinstance(m.fc, nn.Linear)
-    in_features = m.fc.in_features
-    m.fc = nn.Linear(in_features, num_classes)
+    assert isinstance(m.classifier, nn.Sequential)
+    last_layer = m.classifier[-1]
+    assert isinstance(last_layer, nn.Linear)
+    in_features = last_layer.in_features
+    m.classifier[-1] = nn.Linear(in_features, num_classes)
 
     return m
