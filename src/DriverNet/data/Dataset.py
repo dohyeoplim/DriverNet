@@ -31,8 +31,21 @@ class DriverDataset(Dataset):
         self.processed_root_dir = Path(processed_root_dir) if processed_root_dir else None
         self.processed_hard_root_dir = Path(processed_hard_root_dir) if processed_hard_root_dir else None
         self.class_to_idx = class_to_idx
-        self.transform = transform
-        self.processed_transform = processed_transform
+
+        if transform and isinstance(transform, transforms.Compose):
+            self.transform = transforms.Compose(
+                [t for t in transform.transforms if not isinstance(t, transforms.Normalize)]
+            )
+        else:
+            self.transform = transform
+
+        if processed_transform and isinstance(processed_transform, transforms.Compose):
+            self.processed_transform = transforms.Compose(
+                [t for t in processed_transform.transforms if not isinstance(t, transforms.Normalize)]
+            )
+        else:
+            self.processed_transform = processed_transform
+
         self.flip_p = float(flip_p)
         self.is_val = is_val
         self.is_predict = is_predict

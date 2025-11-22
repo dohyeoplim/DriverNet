@@ -20,8 +20,7 @@ class EMA:
     @torch.no_grad()
     def update(self):
         self.global_step += 1
-        if self.global_step < self.warmup_steps:
-            self.teacher.load_state_dict(self.model.state_dict())
+        if self.global_step <= self.warmup_steps:
             return
 
         m = self.decay

@@ -14,11 +14,6 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from src.DriverNet.data.Transforms import Augmentations
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
 from src.DriverNet.utils.ema import EMA
-from src.DriverNet.utils.losses import (
-    kl_div_with_temperature,
-    get_hard_example_weights,
-    entropy_gated_kd,
-)
 
 class BaseModel(L.LightningModule):
     def __init__(
@@ -30,11 +25,12 @@ class BaseModel(L.LightningModule):
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
         label_smoothing: float = 0,
-        consistency_weight: float = 0.5,
+        consistency_loss_type: Literal["kd", "mse"] = "kd",
+        consistency_rampup_steps: float = 0.2,
+        final_consistency_weight: float = 1.0,
         max_logit_norm: Optional[float] = None,
         ema_decay: float = 0.999,
         ema_warmup_steps: int = 100,
-        kd_temperature: float = 2.0,
         augment_on_gpu: bool = True,
         image_size: int = 224,
     ):
@@ -48,13 +44,16 @@ class BaseModel(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler = scheduler
         self.label_smoothing = label_smoothing
-        self.consistency_weight = consistency_weight
+        self.consistency_loss_type = consistency_loss_type
+        self.consistency_rampup_steps = consistency_rampup_steps
+        self.final_consistency_weight = final_consistency_weight
         self.max_logit_norm = max_logit_norm
         self.ema_decay = ema_decay
         self.ema_warmup_steps = ema_warmup_steps
-        self.kd_temperature = kd_temperature
         self.augment_on_gpu = augment_on_gpu
         self.image_size = image_size
+
+        self._consistency_weight = 0.0
 
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
@@ -67,14 +66,21 @@ class BaseModel(L.LightningModule):
         self.val_acc_student = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_teacher = MulticlassAccuracy(num_classes=self.num_classes)
 
-        if self.augment_on_gpu:
-            self.augmentations = Augmentations(self.image_size)
+        self._augmentations = Augmentations(self.image_size)
 
         self._IMGNET_NORMALIZE = K.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._max_entropy = math.log(self.num_classes)
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         self.teacher_ema.update()
+
+        if self.consistency_rampup_steps > 0 and self.global_step < self.consistency_rampup_steps:
+            rampup_factor = self.global_step / self.consistency_rampup_steps
+            self._consistency_weight = self.final_consistency_weight * rampup_factor
+        elif self.consistency_rampup_steps > 0 and self.global_step >= self.consistency_rampup_steps:
+            self._consistency_weight = self.final_consistency_weight
+
+        self.log("consistency_weight", self._consistency_weight, on_step=True, on_epoch=False, prog_bar=False, sync_dist=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
@@ -97,9 +103,13 @@ class BaseModel(L.LightningModule):
         x2 = batch.get("pixel_values_proc_hard")
         y = batch["labels"].long()
 
-        if self.augment_on_gpu and self.training:
-            x0 = self.augmentations(x0)
-        elif self.training:
+        if self.training:
+            x0 = self._augmentations(x0)
+            if x1 is not None:
+                x1 = self._IMGNET_NORMALIZE(x1)
+            if x2 is not None:
+                x2 = self._IMGNET_NORMALIZE(x2)
+        else:
             x0 = self._IMGNET_NORMALIZE(x0)
 
         def fwd(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
@@ -111,45 +121,38 @@ class BaseModel(L.LightningModule):
 
         with torch.no_grad():
             teacher_logits_x0 = fwd(self.teacher, x0)
+            teacher_logits_x1 = fwd(self.teacher, x1) if x1 is not None else None
+            teacher_logits_x2 = fwd(self.teacher, x2) if x2 is not None else None
 
-        ce_terms = []
-
-        ce_x0 = F.cross_entropy(
-            student_logits_x0,
-            y,
-            label_smoothing=self.label_smoothing,
-        )
-        ce_terms.append(ce_x0)
-
-        if student_logits_x1 is not None:
-            ce_x1 = F.cross_entropy(
-                student_logits_x1,
-                y,
-                label_smoothing=self.label_smoothing,
-            )
-            ce_terms.append(ce_x1)
-
-        ce_loss = torch.stack(ce_terms).mean()
-
-        def kl_to_anchor(anchor_logits: torch.Tensor, other_logits: torch.Tensor) -> torch.Tensor:
-            anchor_probs = F.softmax(anchor_logits.detach(), dim=-1)
-            other_log_probs = F.log_softmax(other_logits, dim=-1)
-            return F.kl_div(other_log_probs, anchor_probs, reduction="batchmean")
+        ce_loss = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing)
 
         consistency_terms = []
 
-        if student_logits_x1 is not None:
-            consistency_terms.append(kl_to_anchor(student_logits_x0, student_logits_x1))
+        if self.consistency_loss_type == "kd":
+            loss_fn = lambda s_logits, t_logits: F.kl_div(
+                F.log_softmax(s_logits, dim=-1),
+                F.softmax(t_logits.detach(), dim=-1),
+                reduction="batchmean",
+            )
+        elif self.consistency_loss_type == "mse":
+            loss_fn = lambda s_logits, t_logits: F.mse_loss(s_logits, t_logits.detach(), reduction="batchmean")
+        else:
+            raise ValueError(f"Invalid consistency_loss_type: {self.consistency_loss_type}")
 
-        if student_logits_x2 is not None:
-            consistency_terms.append(kl_to_anchor(student_logits_x0, student_logits_x2))
+        consistency_terms.append(loss_fn(student_logits_x0, teacher_logits_x0))
+
+        if student_logits_x1 is not None and teacher_logits_x1 is not None:
+            consistency_terms.append(loss_fn(student_logits_x1, teacher_logits_x1))
+
+        if student_logits_x2 is not None and teacher_logits_x2 is not None:
+            consistency_terms.append(loss_fn(student_logits_x2, teacher_logits_x2))
 
         if consistency_terms:
             consistency_loss = torch.stack(consistency_terms).mean()
         else:
             consistency_loss = torch.zeros((), device=student_logits_x0.device)
 
-        loss = ce_loss + self.consistency_weight * consistency_loss
+        loss = ce_loss + self._consistency_weight * consistency_loss
 
         sync_dist = prefix != "train"
         self.log(f"{prefix}/loss", loss, on_step=(prefix == "train"), on_epoch=True, prog_bar=True, sync_dist=sync_dist)
@@ -212,14 +215,16 @@ class BaseModel(L.LightningModule):
                 raise RuntimeError("Trainer not attached; OneCycle needs total steps.")
 
             total_steps = int(self.trainer.estimated_stepping_batches)
+            self.total_steps = total_steps
+            self.consistency_rampup_steps = int(self.consistency_rampup_steps * total_steps)
 
             sched: LRScheduler = OneCycleLR(
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                pct_start=0.05,
-                div_factor=25.0,
-                final_div_factor=50,
+                pct_start=0.1,
+                div_factor=10.0,
+                final_div_factor=100.0,
                 anneal_strategy="cos",
             )
 
