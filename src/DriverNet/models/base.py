@@ -58,6 +58,8 @@ class BaseModel(L.LightningModule):
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
         self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained)
+        model_name_lower = self.name.lower()
+        self._uses_depth: bool = ("depthg" in model_name_lower) or ("depthgrouped" in type(self.model).__name__.lower())
 
         self.teacher_ema = EMA(self.model, decay=self.ema_decay, warmup_steps=self.ema_warmup_steps)
         self.teacher = self.teacher_ema.teacher
@@ -82,11 +84,19 @@ class BaseModel(L.LightningModule):
 
         self.log("consistency_weight", self._consistency_weight, on_step=True, on_epoch=False, prog_bar=False, sync_dist=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, depth: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if self.uses_depth:
+            if depth is None:
+                raise ValueError("Depth map is required")
+            return self.model(x, depth)
         return self.model(x)
 
     @torch.no_grad()
-    def teacher_forward(self, x: torch.Tensor) -> torch.Tensor:
+    def teacher_forward(self, x: torch.Tensor, depth: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if self.uses_depth:
+            if depth is None:
+                raise ValueError("Depth map is required")
+            return self.teacher(x, depth)
         return self.teacher(x)
 
     def _maybe_clip_logits(self, logits: torch.Tensor) -> torch.Tensor:
@@ -99,58 +109,37 @@ class BaseModel(L.LightningModule):
 
     def _step(self, batch, prefix: str):
         x0 = batch["pixel_values"]
-        x1 = batch.get("pixel_values_proc")
-        x2 = batch.get("pixel_values_proc_hard")
+        depth = batch.get("depth") if self._uses_depth else None
         y = batch["labels"].long()
 
         if self.training:
             x0 = self._augmentations(x0)
-            if x1 is not None:
-                x1 = self._IMGNET_NORMALIZE(x1)
-            if x2 is not None:
-                x2 = self._IMGNET_NORMALIZE(x2)
         else:
             x0 = self._IMGNET_NORMALIZE(x0)
 
-        def fwd(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
-            return self._maybe_clip_logits(m(x))
+        def fwd(m: nn.Module, x: torch.Tensor, d: Optional[torch.Tensor]) -> torch.Tensor:
+            if self.uses_depth:
+                logits = m(x, d)
+            else:
+                logits = m(x)
+            return self._maybe_clip_logits(logits)
 
-        student_logits_x0 = fwd(self.model, x0)
-        student_logits_x1 = fwd(self.model, x1) if x1 is not None else None
-        student_logits_x2 = fwd(self.model, x2) if x2 is not None else None
-
+        student_logits_x0 = fwd(self.model, x0, depth)
         with torch.no_grad():
-            teacher_logits_x0 = fwd(self.teacher, x0)
-            teacher_logits_x1 = fwd(self.teacher, x1) if x1 is not None else None
-            teacher_logits_x2 = fwd(self.teacher, x2) if x2 is not None else None
+            teacher_logits_x0 = fwd(self.teacher, x0, depth)
 
         ce_loss = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing)
 
-        consistency_terms = []
-
         if self.consistency_loss_type == "kd":
-            loss_fn = lambda s_logits, t_logits: F.kl_div(
-                F.log_softmax(s_logits, dim=-1),
-                F.softmax(t_logits.detach(), dim=-1),
-                reduction="batchmean",
-            )
+            def loss_fn(s_logits, t_logits):
+                return F.kl_div(F.log_softmax(s_logits, dim=-1), F.softmax(t_logits.detach(), dim=-1), reduction="batchmean")
         elif self.consistency_loss_type == "mse":
-            loss_fn = lambda s_logits, t_logits: F.mse_loss(s_logits, t_logits.detach(), reduction="batchmean")
+            def loss_fn(s_logits, t_logits):
+                return F.mse_loss(s_logits, t_logits.detach(), reduction="batchmean")
         else:
             raise ValueError(f"Invalid consistency_loss_type: {self.consistency_loss_type}")
 
-        consistency_terms.append(loss_fn(student_logits_x0, teacher_logits_x0))
-
-        if student_logits_x1 is not None and teacher_logits_x1 is not None:
-            consistency_terms.append(loss_fn(student_logits_x1, teacher_logits_x1))
-
-        if student_logits_x2 is not None and teacher_logits_x2 is not None:
-            consistency_terms.append(loss_fn(student_logits_x2, teacher_logits_x2))
-
-        if consistency_terms:
-            consistency_loss = torch.stack(consistency_terms).mean()
-        else:
-            consistency_loss = torch.zeros((), device=student_logits_x0.device)
+        consistency_loss = loss_fn(student_logits_x0, teacher_logits_x0)
 
         loss = ce_loss + self._consistency_weight * consistency_loss
 
@@ -199,7 +188,10 @@ class BaseModel(L.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         x = batch["pixel_values"]
-        logits = self.teacher_forward(x)
+        depth = batch.get("depth") if self._uses_depth else None
+        x = self._IMGNET_NORMALIZE(x)
+
+        logits = self.teacher_forward(x, depth)
         logits = self._maybe_clip_logits(logits)
         probs = F.softmax(logits, dim=1)
         return {"preds": probs, "img_name": batch["img_name"]}
@@ -212,7 +204,7 @@ class BaseModel(L.LightningModule):
 
         if self.scheduler == "onecycle":
             if self.trainer is None:
-                raise RuntimeError("Trainer not attached; OneCycle needs total steps.")
+                raise RuntimeError("Trainer not attached")
 
             total_steps = int(self.trainer.estimated_stepping_batches)
             self.total_steps = total_steps

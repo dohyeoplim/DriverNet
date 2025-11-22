@@ -34,22 +34,3 @@ class Augmentations(nn.Module):
 
     def forward(self, x):
         return self.augmentations(x)
-
-class DriverTransforms:
-    def __init__(self, img_size):
-        self.img_size = img_size
-
-    def get_transforms(self, train: bool = True):
-        if train:
-            return transforms.Compose([
-                transforms.Resize(self.img_size, interpolation=InterpolationMode.BICUBIC),
-                transforms.CenterCrop(self.img_size),
-                transforms.ToTensor(),
-            ])
-        else:
-            return transforms.Compose([
-                transforms.Resize(int(self.img_size * 1.14), interpolation=InterpolationMode.BICUBIC),
-                transforms.CenterCrop(self.img_size),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])

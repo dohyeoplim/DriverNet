@@ -21,13 +21,12 @@ model:
     consistency_rampup_steps: 0.2
     final_consistency_weight: 1.0
     max_logit_norm: 6.0
-    ema_decay: 0.997
+    ema_decay: 0.999
     ema_warmup_steps: 200
 
 data:
     original_data_dir: "input/original/train"
-    processed_data_dir: "input/processed/train"
-    processed_hard_data_dir: "input/processed_hard/train"
+    depth_data_dir: "input/processed_depth/train"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 96
     num_workers: 8
@@ -40,6 +39,7 @@ data:
 
 data_test:
     predict_dir: "input/original/test"
+    depth_data_dir: "input/processed_depth/test"
     batch_size: 64
     num_workers: 8
     pin_memory: True

@@ -7,7 +7,6 @@ from sklearn.model_selection import StratifiedGroupKFold
 from torch.utils.data import DataLoader
 
 from src.DriverNet.data.Dataset import DriverDataset
-from src.DriverNet.data.Transforms import DriverTransforms
 
 class DriverDataModule(L.LightningDataModule):
     def __init__(
@@ -21,18 +20,14 @@ class DriverDataModule(L.LightningDataModule):
         flip_p: float,
         validation_split: Optional[float] = None,
         original_data_dir: Optional[str] = None,
-        processed_data_dir: Optional[str] = None,
-        processed_hard_data_dir: Optional[str] = None,
-        processed_depth_data_dir: Optional[str] = None,
+        depth_data_dir: Optional[str] = None,
         csv_path: Optional[str] = None,
         predict_dir: Optional[str] = None,
     ):
         super().__init__()
         self.save_hyperparameters()
         self.original_data_dir = Path(original_data_dir) if original_data_dir else None
-        self.processed_data_dir = Path(processed_data_dir) if processed_data_dir else None
-        self.processed_hard_data_dir = Path(processed_hard_data_dir) if processed_hard_data_dir else None
-        self.processed_depth_data_dir = Path(processed_depth_data_dir) if processed_depth_data_dir else None
+        self.depth_data_dir = Path(depth_data_dir) if depth_data_dir else None
         self.predict_dir = Path(predict_dir) if predict_dir else None
         self.csv_path = csv_path
         self.batch_size = batch_size
@@ -44,15 +39,13 @@ class DriverDataModule(L.LightningDataModule):
         self.flip_p = flip_p
         self.validation_split = validation_split
 
-        self._tf = DriverTransforms(img_size=image_size)
-
         self.train_ds: Optional[DriverDataset] = None
         self.val_ds: Optional[DriverDataset] = None
         self.predict_ds: Optional[DriverDataset] = None
         self.class_to_idx: Dict[str, int] = {}
 
     def prepare_data(self):
-        if not any([self.original_data_dir, self.processed_data_dir, self.processed_hard_data_dir, self.processed_depth_data_dir, self.predict_dir]):
+        if not any([self.original_data_dir, self.depth_data_dir, self.predict_dir]):
             raise ValueError("At least one data directory must be provided.")
 
     def setup(self, stage: Optional[str] = None):
@@ -64,12 +57,11 @@ class DriverDataModule(L.LightningDataModule):
 
             test_images = sorted(list(self.predict_dir.glob("*.jpg")))
             predict_df = pd.DataFrame({"img": [p.name for p in test_images]})
-            val_tf = self._tf.get_transforms(train=False)
 
             self.predict_ds = DriverDataset(
                 dataframe=predict_df,
                 original_root_dir=self.predict_dir,
-                transform=val_tf,
+                depth_root_dir=self.depth_data_dir,
                 is_predict=True,
             )
             return
@@ -91,34 +83,27 @@ class DriverDataModule(L.LightningDataModule):
             n_splits = max(2, n_splits)
 
             sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
-            X = df.index.values
-            y = df["classname"].values
-            groups = df["subject"].values
+            X = df.index.to_numpy()
+            y = df["classname"].to_numpy()
+            groups = df["subject"].to_numpy()
             train_idx, val_idx = next(sgkf.split(X, y, groups))
 
             train_df = df.iloc[train_idx]
             val_df = df.iloc[val_idx]
 
-            train_tf = self._tf.get_transforms(train=True)
-            val_tf = self._tf.get_transforms(train=False)
-
             self.train_ds = DriverDataset(
                 dataframe=train_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
-                processed_root_dir=self.processed_data_dir,
-                processed_hard_root_dir=self.processed_hard_data_dir,
+                depth_root_dir=self.depth_data_dir,
                 class_to_idx=self.class_to_idx,
-                transform=train_tf,
-                processed_transform=val_tf,
                 flip_p=self.flip_p,
             )
 
             self.val_ds = DriverDataset(
                 dataframe=val_df.reset_index(drop=True),
                 original_root_dir=self.original_data_dir,
+                depth_root_dir=self.depth_data_dir,
                 class_to_idx=self.class_to_idx,
-                transform=val_tf,
-                is_val=True,
             )
 
     def train_dataloader(self) -> DataLoader:

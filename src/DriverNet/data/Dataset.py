@@ -16,38 +16,17 @@ class DriverDataset(Dataset):
         self,
         dataframe: pd.DataFrame,
         original_root_dir: Path,
-        processed_root_dir: Optional[Path] = None,
-        processed_hard_root_dir: Optional[Path] = None,
+        depth_root_dir: Optional[Path] = None,
         class_to_idx: Optional[Dict[str, int]] = None,
-        transform: Optional[transforms.Compose] = None,
-        processed_transform: Optional[transforms.Compose] = None,
         flip_p: float = 0.0,
-        is_val: bool = False,
         is_predict: bool = False,
     ):
         super().__init__()
         self.df = dataframe.reset_index(drop=True)
         self.original_root_dir = Path(original_root_dir)
-        self.processed_root_dir = Path(processed_root_dir) if processed_root_dir else None
-        self.processed_hard_root_dir = Path(processed_hard_root_dir) if processed_hard_root_dir else None
+        self.depth_root_dir = Path(depth_root_dir) if depth_root_dir else None
         self.class_to_idx = class_to_idx
-
-        if transform and isinstance(transform, transforms.Compose):
-            self.transform = transforms.Compose(
-                [t for t in transform.transforms if not isinstance(t, transforms.Normalize)]
-            )
-        else:
-            self.transform = transform
-
-        if processed_transform and isinstance(processed_transform, transforms.Compose):
-            self.processed_transform = transforms.Compose(
-                [t for t in processed_transform.transforms if not isinstance(t, transforms.Normalize)]
-            )
-        else:
-            self.processed_transform = processed_transform
-
         self.flip_p = float(flip_p)
-        self.is_val = is_val
         self.is_predict = is_predict
         self._default_to_tensor = transforms.ToTensor()
 
@@ -59,49 +38,29 @@ class DriverDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         return Image.fromarray(img)
 
-    def _to_tensor(self, img: Image.Image, tfm: Optional[transforms.Compose]) -> torch.Tensor:
-        x = (tfm or self._default_to_tensor)(img)
-        if isinstance(x, dict) and "pixel_values" in x:
-            x = x["pixel_values"]
-        if not torch.is_tensor(x):
-            raise RuntimeError("Transform must yield a torch.Tensor or dict with 'pixel_values'.")
-        return x
+    def _to_tensor(self, img: Image.Image) -> torch.Tensor:
+        return self._default_to_tensor(img)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         row = self.df.iloc[idx]
         img_name = str(row["img"])
-        class_name = str(row.get("classname", ""))
+        if not self.is_predict:
+            class_name = str(row.get("classname", ""))
 
         op = self.original_root_dir / class_name / img_name
         img0 = self._open_rgb(op)
-        x0 = self._to_tensor(img0, self.transform)
-
-        if self.is_predict:
-            return {"pixel_values": x0, "img_name": img_name}
+        x0 = self._to_tensor(img0)
 
         assert self.class_to_idx is not None, "class_to_idx must be provided for training/validation"
         label = int(self.class_to_idx[str(row["classname"])])
 
-        if self.is_val:
-            return {"pixel_values": x0, "labels": torch.tensor(label, dtype=torch.long)}
-
-        x1 = None
-        if self.processed_root_dir:
-            p1 = self.processed_root_dir / class_name / f"{Path(img_name).stem}_processed.png"
+        if self.depth_root_dir:
+            p1 = self.depth_root_dir / class_name / f"{Path(img_name).stem}_depth.png"
             if p1.exists():
                 img1 = self._open_rgb(p1)
-                x1 = self._to_tensor(img1, self.processed_transform or self.transform)
-        if x1 is None:
-            x1 = x0.clone()
-
-        x2 = None
-        if self.processed_hard_root_dir:
-            p2 = self.processed_hard_root_dir / class_name / f"{Path(img_name).stem}_processed.png"
-            if p2.exists():
-                img2 = self._open_rgb(p2)
-                x2 = self._to_tensor(img2, self.processed_transform or self.transform)
-        if x2 is None:
-            x2 = x0.clone()
+                xd = self._to_tensor(img1)
+        if xd is None:
+            raise FileNotFoundError(f"Depth image not found for {img_name} at {p1}")
 
         # if random.random() < self.flip_p:
         #     x0 = torch.flip(x0, dims=[2])
@@ -110,9 +69,15 @@ class DriverDataset(Dataset):
         #     if label in FLIP_REMAP:
         #         label = FLIP_REMAP[label]
 
+        if self.is_predict:
+            return {
+                "pixel_values": x0,
+                "depth": xd,
+                "img_name": row["img"],
+            }
+
         return {
             "pixel_values": x0,
-            "pixel_values_proc": x1,
-            "pixel_values_proc_hard": x2,
+            "depth": xd,
             "labels": torch.tensor(label, dtype=torch.long),
         }
