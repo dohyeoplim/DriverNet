@@ -40,7 +40,4 @@ class DepthMap:
         formatted = (output - output.min()) / (output.max() - output.min()) * 255.0
         depth_map = formatted.astype(np.uint8)
 
-        depth_map_colorized = cv2.applyColorMap(depth_map, cv2.COLORMAP_INFERNO)
-        depth_map_colorized = cv2.cvtColor(depth_map_colorized, cv2.COLOR_BGR2RGB)
-
-        return Image.fromarray(depth_map_colorized)
+        return Image.fromarray(depth_map)
