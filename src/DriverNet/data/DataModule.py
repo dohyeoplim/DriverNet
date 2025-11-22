@@ -23,6 +23,7 @@ class DriverDataModule(L.LightningDataModule):
         original_data_dir: Optional[str] = None,
         processed_data_dir: Optional[str] = None,
         processed_hard_data_dir: Optional[str] = None,
+        processed_depth_data_dir: Optional[str] = None,
         csv_path: Optional[str] = None,
         predict_dir: Optional[str] = None,
     ):
@@ -31,6 +32,7 @@ class DriverDataModule(L.LightningDataModule):
         self.original_data_dir = Path(original_data_dir) if original_data_dir else None
         self.processed_data_dir = Path(processed_data_dir) if processed_data_dir else None
         self.processed_hard_data_dir = Path(processed_hard_data_dir) if processed_hard_data_dir else None
+        self.processed_depth_data_dir = Path(processed_depth_data_dir) if processed_depth_data_dir else None
         self.predict_dir = Path(predict_dir) if predict_dir else None
         self.csv_path = csv_path
         self.batch_size = batch_size
@@ -50,7 +52,7 @@ class DriverDataModule(L.LightningDataModule):
         self.class_to_idx: Dict[str, int] = {}
 
     def prepare_data(self):
-        if not any([self.original_data_dir, self.processed_data_dir, self.processed_hard_data_dir, self.predict_dir]):
+        if not any([self.original_data_dir, self.processed_data_dir, self.processed_hard_data_dir, self.processed_depth_data_dir, self.predict_dir]):
             raise ValueError("At least one data directory must be provided.")
 
     def setup(self, stage: Optional[str] = None):

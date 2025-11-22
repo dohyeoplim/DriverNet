@@ -10,14 +10,14 @@ trainer:
     strategy: "auto"
 
 model:
-    name: "resnet101"
+    name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
     lr: 3e-4
-    weight_decay: 1e-4
+    weight_decay: 1e-2
     scheduler: "onecycle"
     label_smoothing: 0.02
-    consistency_loss_type: kd
+    consistency_loss_type: "mse"
     consistency_rampup_steps: 0.2
     final_consistency_weight: 1.0
     max_logit_norm: 6.0
