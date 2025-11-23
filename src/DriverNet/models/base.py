@@ -85,7 +85,7 @@ class BaseModel(L.LightningModule):
         self.log("consistency_weight", self._consistency_weight, on_step=True, on_epoch=False, prog_bar=False, sync_dist=False)
 
     def forward(self, x: torch.Tensor, depth: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if self.uses_depth:
+        if self._uses_depth:
             if depth is None:
                 raise ValueError("Depth map is required")
             return self.model(x, depth)
@@ -93,7 +93,7 @@ class BaseModel(L.LightningModule):
 
     @torch.no_grad()
     def teacher_forward(self, x: torch.Tensor, depth: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if self.uses_depth:
+        if self._uses_depth:
             if depth is None:
                 raise ValueError("Depth map is required")
             return self.teacher(x, depth)
@@ -118,7 +118,7 @@ class BaseModel(L.LightningModule):
             x0 = self._IMGNET_NORMALIZE(x0)
 
         def fwd(m: nn.Module, x: torch.Tensor, d: Optional[torch.Tensor]) -> torch.Tensor:
-            if self.uses_depth:
+            if self._uses_depth:
                 logits = m(x, d)
             else:
                 logits = m(x)
