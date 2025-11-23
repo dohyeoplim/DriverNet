@@ -52,23 +52,40 @@ class DriverDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         row = self.df.iloc[idx]
         img_name = str(row["img"])
-        if not self.is_predict:
-            class_name = str(row.get("classname", ""))
+        class_name = str(row.get("classname", ""))
 
-        op = self.original_root_dir / class_name / img_name
-        img0 = self._open_rgb(op)
+        if self.is_predict:
+            rgb_path = self.original_root_dir / img_name
+        else:
+            rgb_path = self.original_root_dir / class_name / img_name
+
+        img0 = self._open_rgb(rgb_path)
         x0 = self._to_tensor(img0)
 
-        assert self.class_to_idx is not None, "class_to_idx must be provided for training/validation"
-        label = int(self.class_to_idx[str(row["classname"])])
+        xd: Optional[torch.Tensor] = None
+        depth_path: Optional[Path] = None
 
-        if self.depth_root_dir:
-            p1 = self.depth_root_dir / class_name / f"{Path(img_name).stem}_depth.png"
-            if p1.exists():
-                img1 = self._open_grayscale(p1)
-                xd = self._to_tensor(img1)
+        if self.depth_root_dir is not None:
+            stem = Path(img_name).stem
+            if self.is_predict:
+                depth_path = self.depth_root_dir / f"{stem}_depth.png"
+            else:
+                depth_path = self.depth_root_dir / class_name / f"{stem}_depth.png"
+
+            if depth_path.exists():
+                depth_img = self._open_grayscale(depth_path)
+                xd = self._to_tensor(depth_img)
+
         if xd is None:
-            raise FileNotFoundError(f"Depth image not found for {img_name} at {p1}")
+            raise FileNotFoundError(f"Depth image not found for {img_name} at {depth_path}")
+
+        if self.is_predict:
+            return {
+                "pixel_values": x0,
+                "depth": xd,
+                "img_name": img_name,
+            }
+
 
         # if random.random() < self.flip_p:
         #     x0 = torch.flip(x0, dims=[2])
@@ -77,15 +94,12 @@ class DriverDataset(Dataset):
         #     if label in FLIP_REMAP:
         #         label = FLIP_REMAP[label]
 
-        if self.is_predict:
-            return {
-                "pixel_values": x0,
-                "depth": xd,
-                "img_name": row["img"],
-            }
+        assert self.class_to_idx is not None, "class_to_idx must be provided for training/validation"
+
+        label_idx = int(self.class_to_idx[class_name])
 
         return {
             "pixel_values": x0,
             "depth": xd,
-            "labels": torch.tensor(label, dtype=torch.long),
+            "labels": torch.tensor(label_idx, dtype=torch.long),
         }

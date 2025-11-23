@@ -28,7 +28,7 @@ class DepthGroupedHead(nn.Module):
             nn.Linear(in_dim, hidden),
             nn.BatchNorm1d(hidden),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(hidden, num_classes),
         )
 

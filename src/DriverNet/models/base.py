@@ -114,6 +114,7 @@ class BaseModel(L.LightningModule):
 
         if self.training:
             x0 = self._augmentations(x0)
+            x0 = self._IMGNET_NORMALIZE(x0)
         else:
             x0 = self._IMGNET_NORMALIZE(x0)
 
@@ -135,7 +136,7 @@ class BaseModel(L.LightningModule):
                 return F.kl_div(F.log_softmax(s_logits, dim=-1), F.softmax(t_logits.detach(), dim=-1), reduction="batchmean")
         elif self.consistency_loss_type == "mse":
             def loss_fn(s_logits, t_logits):
-                return F.mse_loss(s_logits, t_logits.detach(), reduction="batchmean")
+                return F.mse_loss(s_logits, t_logits.detach())
         else:
             raise ValueError(f"Invalid consistency_loss_type: {self.consistency_loss_type}")
 
