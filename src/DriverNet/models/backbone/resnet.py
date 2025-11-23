@@ -2,7 +2,7 @@ import torch.nn as nn
 from torchvision.models import resnet50, resnet101, resnet152
 from torchvision.models.resnet import ResNet, ResNet50_Weights, ResNet101_Weights, ResNet152_Weights
 from typing import Literal
-from DriverNet.models.heads import DepthGroupedResNet
+from src.DriverNet.models.heads import DepthGroupedResNet
 
 resnet_model_names = Literal["50", "101", "152", "50_depthg", "101_depthg", "152_depthg"]
 
