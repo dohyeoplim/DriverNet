@@ -13,10 +13,10 @@ model:
     name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
-    lr: 3e-4
-    weight_decay: 5e-2
+    lr: 2e-4
+    weight_decay: 1e-2
     scheduler: "onecycle"
-    label_smoothing: 0
+    label_smoothing: 0.0
     consistency_loss_type: "mse"
     consistency_rampup_steps: 0
     final_consistency_weight: 0

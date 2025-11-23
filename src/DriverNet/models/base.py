@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import kornia.augmentation as K
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
-from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from typing import Literal, Optional
 import math
 
@@ -14,6 +14,7 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from src.DriverNet.data.Transforms import Augmentations
 from src.DriverNet.models.backbone import MODEL_NAMES, MODEL_OPTIONS
 from src.DriverNet.utils.ema import EMA
+from src.DriverNet.utils.visualization import save_confusion_matrix
 
 class BaseModel(L.LightningModule):
     def __init__(
@@ -67,6 +68,12 @@ class BaseModel(L.LightningModule):
         self.train_acc = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_student = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_teacher = MulticlassAccuracy(num_classes=self.num_classes)
+
+        self.val_confmat_student = MulticlassConfusionMatrix(num_classes=self.num_classes)
+        self.val_confmat_teacher = MulticlassConfusionMatrix(num_classes=self.num_classes)
+
+        self._final_confmat_student: Optional[torch.Tensor] = None
+        self._final_confmat_teacher: Optional[torch.Tensor] = None
 
         self._augmentations = Augmentations(self.image_size)
 
@@ -156,6 +163,10 @@ class BaseModel(L.LightningModule):
             teacher_probs = F.softmax(teacher_logits_x0, dim=-1)
             self.val_acc_student.update(student_probs, y)
             self.val_acc_teacher.update(teacher_probs, y)
+
+            self.val_confmat_student.update(student_probs, y)
+            self.val_confmat_teacher.update(teacher_probs, y)
+
             val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
             self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
@@ -184,8 +195,39 @@ class BaseModel(L.LightningModule):
     def on_validation_epoch_end(self):
         self.log("val/acc_student", self.val_acc_student.compute(), on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val/acc_teacher", self.val_acc_teacher.compute(), on_epoch=True, prog_bar=True, sync_dist=True)
+
+        cm_student = self.val_confmat_student.compute()
+        cm_teacher = self.val_confmat_teacher.compute()
+
+        self._final_confmat_student = cm_student.detach().cpu()
+        self._final_confmat_teacher = cm_teacher.detach().cpu()
+
         self.val_acc_student.reset()
         self.val_acc_teacher.reset()
+        self.val_confmat_student.reset()
+        self.val_confmat_teacher.reset()
+
+    def on_fit_end(self):
+        if self.trainer is None or not self.trainer.is_global_zero:
+            return
+
+        save_dir = "output/confusion_matrix"
+
+        if self._final_confmat_student is not None:
+            save_confusion_matrix(
+                self._final_confmat_student,
+                save_path=f"{save_dir}/student.png",
+                title="Confusion Matrix (Student)"
+            )
+            self.print(f"Saved: {save_dir}/student.png")
+
+        if self._final_confmat_teacher is not None:
+            save_confusion_matrix(
+                self._final_confmat_teacher,
+                save_path=f"{save_dir}/teacher.png",
+                title="Confusion Matrix (Teacher)"
+            )
+            self.print(f"Saved: {save_dir}/teacher.png")
 
     def predict_step(self, batch, batch_idx):
         x = batch["pixel_values"]
