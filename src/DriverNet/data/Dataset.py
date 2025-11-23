@@ -38,6 +38,14 @@ class DriverDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         return Image.fromarray(img)
 
+    def _open_grayscale(self, p: Path) -> Image.Image:
+        img = cv2.imread(str(p), cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise FileNotFoundError(f"Depth image not found at {p}")
+        if img.ndim == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return Image.fromarray(img)
+
     def _to_tensor(self, img: Image.Image) -> torch.Tensor:
         return self._default_to_tensor(img)
 
@@ -57,7 +65,7 @@ class DriverDataset(Dataset):
         if self.depth_root_dir:
             p1 = self.depth_root_dir / class_name / f"{Path(img_name).stem}_depth.png"
             if p1.exists():
-                img1 = self._open_rgb(p1)
+                img1 = self._open_grayscale(p1)
                 xd = self._to_tensor(img1)
         if xd is None:
             raise FileNotFoundError(f"Depth image not found for {img_name} at {p1}")
