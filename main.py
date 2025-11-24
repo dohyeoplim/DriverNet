@@ -45,9 +45,9 @@ def main():
 
     if args.train_and_submit:
         from src.DriverNet.core.train import train
-        from src.DriverNet.core.test import test
+        from src.DriverNet.utils.ensemble import average_predictions
         submission_paths = train()
-        print(f"Submissions saved to {submission_paths}")
+        average_predictions(submission_paths, args.submission_path)
         return
 
 if __name__ == "__main__":
