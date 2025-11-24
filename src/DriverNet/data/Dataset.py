@@ -20,6 +20,7 @@ class DriverDataset(Dataset):
         class_to_idx: Optional[Dict[str, int]] = None,
         flip_p: float = 0.0,
         is_predict: bool = False,
+        image_size: int = 224,
     ):
         super().__init__()
         self.df = dataframe.reset_index(drop=True)
@@ -28,7 +29,16 @@ class DriverDataset(Dataset):
         self.class_to_idx = class_to_idx
         self.flip_p = float(flip_p)
         self.is_predict = is_predict
-        self._default_to_tensor = transforms.ToTensor()
+        self.image_size = image_size
+
+        self.rgb_transform = transforms.Compose([
+            transforms.Resize((self.image_size, self.image_size)),
+            transforms.ToTensor(),
+        ])
+        self.depth_transform = transforms.Compose([
+            transforms.Resize((self.image_size, self.image_size)),
+            transforms.ToTensor(),
+        ])
 
     def __len__(self) -> int:
         return len(self.df)
@@ -46,8 +56,11 @@ class DriverDataset(Dataset):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         return Image.fromarray(img)
 
-    def _to_tensor(self, img: Image.Image) -> torch.Tensor:
-        return self._default_to_tensor(img)
+    def _rgb_to_tensor(self, img):
+        return self.rgb_transform(img)
+
+    def _depth_to_tensor(self, img):
+        return self.depth_transform(img)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         row = self.df.iloc[idx]
@@ -60,7 +73,7 @@ class DriverDataset(Dataset):
             rgb_path = self.original_root_dir / class_name / img_name
 
         img0 = self._open_rgb(rgb_path)
-        x0 = self._to_tensor(img0)
+        x0 = self._rgb_to_tensor(img0)
 
         xd: Optional[torch.Tensor] = None
         depth_path: Optional[Path] = None
@@ -74,7 +87,7 @@ class DriverDataset(Dataset):
 
             if depth_path.exists():
                 depth_img = self._open_grayscale(depth_path)
-                xd = self._to_tensor(depth_img)
+                xd = self._depth_to_tensor(depth_img)
 
         if xd is None:
             raise FileNotFoundError(f"Depth image not found for {img_name} at {depth_path}")
@@ -85,7 +98,6 @@ class DriverDataset(Dataset):
                 "depth": xd,
                 "img_name": img_name,
             }
-
 
         # if random.random() < self.flip_p:
         #     x0 = torch.flip(x0, dims=[2])

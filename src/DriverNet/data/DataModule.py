@@ -63,6 +63,7 @@ class DriverDataModule(L.LightningDataModule):
                 original_root_dir=self.predict_dir,
                 depth_root_dir=self.depth_data_dir,
                 is_predict=True,
+                image_size=self.image_size,
             )
             return
 
@@ -97,6 +98,7 @@ class DriverDataModule(L.LightningDataModule):
                 depth_root_dir=self.depth_data_dir,
                 class_to_idx=self.class_to_idx,
                 flip_p=self.flip_p,
+                image_size=self.image_size,
             )
 
             self.val_ds = DriverDataset(
@@ -104,6 +106,7 @@ class DriverDataModule(L.LightningDataModule):
                 original_root_dir=self.original_data_dir,
                 depth_root_dir=self.depth_data_dir,
                 class_to_idx=self.class_to_idx,
+                image_size=self.image_size,
             )
 
     def train_dataloader(self) -> DataLoader:

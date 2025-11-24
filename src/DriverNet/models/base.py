@@ -63,6 +63,8 @@ class BaseModel(L.LightningModule):
         self.teacher_ema = EMA(self.model, decay=self.ema_decay, warmup_steps=self.ema_warmup_steps)
         self.teacher = self.teacher_ema.teacher
 
+        self._consistency_weight = 0.0
+
         self.train_acc = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_student = MulticlassAccuracy(num_classes=self.num_classes)
         self.val_acc_teacher = MulticlassAccuracy(num_classes=self.num_classes)

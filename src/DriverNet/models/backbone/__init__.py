@@ -1,13 +1,18 @@
 from torch.nn import Module
 from typing import Callable, get_args
-from .alexnet import load_alexnet
+from .alexnet import load_alexnet, alexnet_model_names
 from .resnet import load_resnet, resnet_model_names
 from .vgg import load_vgg, vgg_model_names
 from .googlenet import load_googlenet
 from .vit import load_vit, vit_model_names
 
 MODEL_OPTIONS: dict[str, Callable[..., Module]] = {
-    "alexnet":   lambda **kw: load_alexnet(**kw),
+    # "alexnet":   lambda **kw: load_alexnet(**kw),
+    **{
+        f"alexnet{m}": (lambda m=m, **kw: load_alexnet(m, **kw))
+        for m in get_args(alexnet_model_names)
+    },
+
     "googlenet": lambda **kw: load_googlenet(**kw),
     **{
         f"resnet{m}": (lambda m=m, **kw: load_resnet(m, **kw))

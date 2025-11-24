@@ -1,20 +1,28 @@
 import torch.nn as nn
 from torchvision.models import alexnet
-from torchvision.models.alexnet import AlexNet, AlexNet_Weights
+from torchvision.models.alexnet import  AlexNet_Weights
+from src.DriverNet.models.heads import DepthGroupedAlexNet
+from typing import Literal
+
+alexnet_model_names = Literal["", "_depthg"]
 
 def load_alexnet(
+    model: alexnet_model_names = "",
     num_classes: int = 10,
     pretrained: bool = True,
-) -> AlexNet:
+    image_size: int = 224,
+):
+    depthg = model.endswith("_depthg")
+
     weights = AlexNet_Weights.IMAGENET1K_V1 if pretrained else None
-    ctor = alexnet
+    backbone = alexnet(weights=weights)
 
-    m = ctor(weights=weights)
+    if depthg:
+        return DepthGroupedAlexNet(backbone=backbone, num_classes=num_classes, img_size=image_size)
 
-    assert isinstance(m.classifier, nn.Sequential)
-    last_layer = m.classifier[-1]
-    assert isinstance(last_layer, nn.Linear)
-    in_features = last_layer.in_features
-    m.classifier[-1] = nn.Linear(in_features, num_classes)
+    assert isinstance(backbone.classifier, nn.Sequential)
+    last = backbone.classifier[-1]
+    assert isinstance(last, nn.Linear)
+    backbone.classifier[-1] = nn.Linear(last.in_features, num_classes)
 
-    return m
+    return backbone

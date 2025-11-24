@@ -10,19 +10,19 @@ trainer:
     strategy: "auto"
 
 model:
-    name: "resnet101_depthg"
+    name: "vgg19_bn_depthg"
     num_classes: 10
     pretrained: true
-    lr: 2e-4
-    weight_decay: 5e-2
+    lr: 5e-5
+    weight_decay: 5e-4
     scheduler: "onecycle"
-    label_smoothing: 0.0
-    consistency_loss_type: "mse"
+    label_smoothing: 0.05
+    consistency_loss_type: "kd"
     max_logit_norm: 6.0
-    ema_decay: 0.999
-    ema_warmup_steps: 561
-    consistency_rampup_steps: 200
-    final_consistency_weight: 1.0
+    ema_decay: 0.998
+    ema_warmup_steps: 467
+    consistency_rampup_steps: 130
+    final_consistency_weight: 0.1
 
 data:
     original_data_dir: "input/original/train"
