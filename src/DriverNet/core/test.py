@@ -4,7 +4,7 @@ from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.base import BaseModel
 from src.DriverNet.utils.submission import create_submission
 
-def test(checkpoint_path: str | None = None) -> None:
+def test(checkpoint_path: str | None = None, submission_path: str = "./output/submission.csv") -> None:
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
@@ -21,4 +21,4 @@ def test(checkpoint_path: str | None = None) -> None:
 
     outputs = trainer.predict(model, datamodule=dm)
 
-    create_submission(outputs, "./output/submission.csv") # type: ignore
+    create_submission(outputs, submission_path) # type: ignore

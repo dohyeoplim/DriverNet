@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--test", action="store_true", help="Test the model")
     p.add_argument("--train-and-submit", action="store_true", help="Train the model and create a submission")
     p.add_argument("--checkpoint-path", type=str, default=None)
+    p.add_argument("--submission-path", type=str, default="./output/submission.csv")
     return p.parse_args()
 
 def main():
@@ -39,14 +40,14 @@ def main():
 
     if args.test:
         from src.DriverNet.core.test import test
-        test(checkpoint_path=args.checkpoint_path)
+        test(checkpoint_path=args.checkpoint_path, submission_path=args.submission_path)
         return
 
     if args.train_and_submit:
         from src.DriverNet.core.train import train
         from src.DriverNet.core.test import test
-        best_checkpoint_path = train()
-        test(checkpoint_path=best_checkpoint_path)
+        submission_paths = train()
+        print(f"Submissions saved to {submission_paths}")
         return
 
 if __name__ == "__main__":

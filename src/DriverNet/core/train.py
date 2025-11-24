@@ -5,6 +5,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from src.DriverNet.data.DataModule import DriverDataModule
 from src.DriverNet.models.base import BaseModel
 from src.DriverNet.utils.logger import wandb_logger
+from src.DriverNet.core.test import test
 
 def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None):
     filename = "best-{epoch:02d}-{val_logloss:.4f}"
@@ -29,14 +30,14 @@ def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None):
     )
     return [earlyStopping, checkpoint]
 
-def train() -> str:
+def train() -> list[str]:
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
     num_folds = cfg.data.get("num_folds")
 
     if num_folds is not None and num_folds > 1:
-        best_model_path = ""
+        submission_paths = []
         for fold in range(num_folds):
             print(f"Training fold {fold + 1}/{num_folds}")
             model = BaseModel(**cfg.model)
@@ -51,8 +52,12 @@ def train() -> str:
             trainer.fit(model, datamodule=dm)
 
             ckpt_cb = next(cb for cb in callbacks if isinstance(cb, ModelCheckpoint))
-            best_model_path = ckpt_cb.best_model_path
-        return best_model_path
+
+            submission_path = f"./output/submission_fold_{fold}.csv"
+            test(checkpoint_path=ckpt_cb.best_model_path, submission_path=submission_path)
+            submission_paths.append(submission_path)
+
+        return submission_paths
 
     model = BaseModel(**cfg.model)
     callbacks = _build_callbacks(monitor="val/logloss", mode="min")
@@ -62,4 +67,5 @@ def train() -> str:
     trainer.fit(model, datamodule=dm)
 
     ckpt_cb = next(cb for cb in callbacks if isinstance(cb, ModelCheckpoint))
-    return ckpt_cb.best_model_path
+    test(ckpt_cb.best_model_path)
+    return ["./output/submission.csv"]
