@@ -14,15 +14,15 @@ model:
     num_classes: 10
     pretrained: true
     lr: 2e-4
-    weight_decay: 1e-2
+    weight_decay: 5e-2
     scheduler: "onecycle"
     label_smoothing: 0.0
     consistency_loss_type: "mse"
-    consistency_rampup_steps: 0
-    final_consistency_weight: 0
     max_logit_norm: 6.0
-    ema_decay: 0
-    ema_warmup_steps: 0
+    ema_decay: 0.999
+    ema_warmup_steps: 561
+    consistency_rampup_steps: 200
+    final_consistency_weight: 1.0
 
 data:
     original_data_dir: "input/original/train"

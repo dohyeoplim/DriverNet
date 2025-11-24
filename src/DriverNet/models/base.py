@@ -54,8 +54,6 @@ class BaseModel(L.LightningModule):
         self.augment_on_gpu = augment_on_gpu
         self.image_size = image_size
 
-        self._consistency_weight = 0.0
-
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
         self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained)
@@ -83,10 +81,15 @@ class BaseModel(L.LightningModule):
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         self.teacher_ema.update()
 
-        if self.consistency_rampup_steps > 0 and self.global_step < self.consistency_rampup_steps:
-            rampup_factor = self.global_step / self.consistency_rampup_steps
-            self._consistency_weight = self.final_consistency_weight * rampup_factor
-        elif self.consistency_rampup_steps > 0 and self.global_step >= self.consistency_rampup_steps:
+        start = self.ema_warmup_steps
+        end = start + self.consistency_rampup_steps
+
+        if self.global_step < start:
+            self._consistency_weight = 0.0
+        elif start <= self.global_step < end:
+            ramp_pos = (self.global_step - start) / (end - start)
+            self._consistency_weight = self.final_consistency_weight * ramp_pos
+        else:
             self._consistency_weight = self.final_consistency_weight
 
         self.log("consistency_weight", self._consistency_weight, on_step=True, on_epoch=False, prog_bar=False, sync_dist=False)
