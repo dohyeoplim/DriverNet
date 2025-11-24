@@ -12,7 +12,7 @@ def _build_callbacks(monitor: str, mode: str):
         mode=mode,
         save_top_k=1,
         verbose=True,
-        filename="best-{epoch:02d}-{val/logloss_teacher:.4f}",
+        filename="best-{epoch:02d}-{val/logloss:.4f}",
         dirpath="output/checkpoints",
     )
     earlyStopping = EarlyStopping(
