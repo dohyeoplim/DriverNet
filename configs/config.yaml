@@ -13,16 +13,16 @@ model:
     name: "vgg19_bn_depthg"
     num_classes: 10
     pretrained: true
-    lr: 5e-5
-    weight_decay: 5e-3
+    lr: 5e-4
+    weight_decay: 5e-2
     scheduler: "onecycle"
     label_smoothing: 0.05
-    consistency_loss_type: "kd"
+    consistency_loss_type: "mse"
     max_logit_norm: 6.0
-    ema_decay: 0.9999
-    ema_warmup_steps: 467
-    consistency_rampup_steps: 130
-    final_consistency_weight: 0.1
+    ema_decay: 0.998
+    ema_warmup_steps: 500
+    consistency_rampup_steps: 100
+    final_consistency_weight: 0.3
 
 data:
     original_data_dir: "input/original/train"
@@ -36,7 +36,7 @@ data:
     image_size: 224
     flip_p: 0
     validation_split: 0.2
-    num_folds: null
+    num_folds: 3
     fold_index: 0
 
 data_test:
