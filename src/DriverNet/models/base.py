@@ -174,6 +174,7 @@ class BaseModel(L.LightningModule):
 
             val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
             self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("val_logloss", val_nll, logger=False)
         return loss
 
     def training_step(self, batch, batch_idx):
