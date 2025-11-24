@@ -19,6 +19,8 @@ class DriverDataModule(L.LightningDataModule):
         image_size: int,
         flip_p: float,
         validation_split: Optional[float] = None,
+        num_folds: Optional[int] = None,
+        fold_index: int = 0,
         original_data_dir: Optional[str] = None,
         depth_data_dir: Optional[str] = None,
         csv_path: Optional[str] = None,
@@ -38,6 +40,8 @@ class DriverDataModule(L.LightningDataModule):
         self.image_size = image_size
         self.flip_p = flip_p
         self.validation_split = validation_split
+        self.num_folds = num_folds
+        self.fold_index = fold_index
 
         self.train_ds: Optional[DriverDataset] = None
         self.val_ds: Optional[DriverDataset] = None
@@ -77,17 +81,24 @@ class DriverDataModule(L.LightningDataModule):
             classes = sorted(df["classname"].unique())
             self.class_to_idx = {cls: i for i, cls in enumerate(classes)}
 
-            if self.validation_split is None or not (0.0 < self.validation_split < 0.5):
-                raise ValueError("validation_split must be set to a value in (0, 0.5).")
+            if self.num_folds is not None:
+                n_splits = self.num_folds
+            elif self.validation_split is not None and (0.0 < self.validation_split < 0.5):
+                n_splits = int(round(1.0 / self.validation_split))
+            else:
+                 raise ValueError("Either num_folds or validation_split (in (0, 0.5)) must be set.")
 
-            n_splits = int(round(1.0 / self.validation_split))
             n_splits = max(2, n_splits)
+            if self.fold_index < 0 or self.fold_index >= n_splits:
+                 raise ValueError(f"fold_index {self.fold_index} must be in [0, {n_splits - 1}]")
 
             sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
             X = df.index.to_numpy()
             y = df["classname"].to_numpy()
             groups = df["subject"].to_numpy()
-            train_idx, val_idx = next(sgkf.split(X, y, groups))
+
+            splits = list(sgkf.split(X, y, groups))
+            train_idx, val_idx = splits[self.fold_index]
 
             train_df = df.iloc[train_idx]
             val_df = df.iloc[val_idx]

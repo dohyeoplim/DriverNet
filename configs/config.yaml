@@ -36,6 +36,8 @@ data:
     image_size: 224
     flip_p: 0
     validation_split: 0.2
+    num_folds: null
+    fold_index: 0
 
 data_test:
     predict_dir: "input/original/test"
