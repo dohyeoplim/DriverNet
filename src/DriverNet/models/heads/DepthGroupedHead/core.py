@@ -24,22 +24,23 @@ class DepthGroupedHead(nn.Module):
         self,
         feat_dim: int,
         num_classes: int,
-        hidden_ratio: float = 0.5,
         dropout: float = 0.3,
     ):
         super().__init__()
         in_dim = feat_dim * 4
-        hidden = max(num_classes * 4, int(in_dim * hidden_ratio))
+        hidden = in_dim
 
+        self.pre_norm = nn.LayerNorm(in_dim)
         self.fc1 = nn.Linear(in_dim, hidden)
+        self.act = nn.SiLU()
         self.dropout = nn.Dropout(dropout)
         self.fc_out = nn.Linear(hidden, num_classes)
 
     def forward(self, feat: torch.Tensor, depth: torch.Tensor) -> torch.Tensor:
         pooled = depth_group_pooled_features(feat, depth)
-
-        x = self.fc1(pooled)
-        x = F.relu(x)
+        x = self.pre_norm(pooled)
+        x = self.fc1(x)
+        x = self.act(x)
         x = self.dropout(x)
         logits = self.fc_out(x)
         return logits
