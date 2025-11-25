@@ -25,7 +25,7 @@ class DepthGroupedHead(nn.Module):
         feat_dim: int,
         num_classes: int,
         hidden_ratio: float = 0.5,
-        dropout: float = 0.2,
+        dropout: float = 0.3,
     ):
         super().__init__()
         in_dim = feat_dim * 4
@@ -39,7 +39,7 @@ class DepthGroupedHead(nn.Module):
         pooled = depth_group_pooled_features(feat, depth)
 
         x = self.fc1(pooled)
-        x = F.gelu(x)
+        x = F.relu(x)
         x = self.dropout(x)
         logits = self.fc_out(x)
         return logits

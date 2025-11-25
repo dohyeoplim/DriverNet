@@ -10,33 +10,33 @@ trainer:
     strategy: "auto"
 
 model:
-    name: "vgg19_bn_depthg"
+    name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
-    lr: 5e-4
-    weight_decay: 5e-2
+    lr: 3e-4
+    weight_decay: 4e-2
     scheduler: "onecycle"
-    label_smoothing: 0.05
+    label_smoothing: 0.0
     consistency_loss_type: "mse"
     max_logit_norm: 6.0
-    ema_decay: 0.998
-    ema_warmup_steps: 500
-    consistency_rampup_steps: 100
-    final_consistency_weight: 0.3
+    ema_decay: 0.0
+    ema_warmup_steps: 0.0
+    consistency_rampup_steps: 0.0
+    final_consistency_weight: 0.0
 
 data:
     original_data_dir: "input/original/train"
     depth_data_dir: "input/processed_depth/train"
     csv_path: "input/driver_imgs_list.csv"
     batch_size: 96
-    num_workers: 8
+    num_workers: 10
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 2
     image_size: 224
     flip_p: 0
     validation_split: 0.2
-    num_folds: 3
+    num_folds: 5
     fold_index: 0
 
 data_test:
