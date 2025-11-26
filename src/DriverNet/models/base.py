@@ -273,7 +273,7 @@ class BaseModel(L.LightningModule):
                 # final_div_factor=100.0,
                 pct_start=0.25,
                 div_factor=25.0,
-                final_div_factor=100.0,
+                final_div_factor=1000.0,
                 anneal_strategy="cos",
             )
 

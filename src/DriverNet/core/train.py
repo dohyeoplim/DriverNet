@@ -7,19 +7,7 @@ from src.DriverNet.models.base import BaseModel
 from src.DriverNet.utils.logger import wandb_logger
 from src.DriverNet.core.test import test
 
-def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None):
-    filename = "best-{epoch:02d}-{val_logloss:.4f}"
-    if fold_idx is not None:
-        filename = f"fold{fold_idx}-" + filename
-
-    checkpoint = ModelCheckpoint(
-        monitor=monitor,
-        mode=mode,
-        save_top_k=1,
-        verbose=True,
-        filename=filename,
-        dirpath="output/checkpoints",
-    )
+def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None) -> list[L.Callback]:
     earlyStopping = EarlyStopping(
         monitor=monitor,
         mode=mode,
@@ -28,7 +16,7 @@ def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None):
         check_finite=True,
         verbose=True,
     )
-    return [earlyStopping, checkpoint]
+    return [earlyStopping]
 
 def train() -> list[str]:
     cfg = OmegaConf.load("configs/config.yaml")
@@ -51,10 +39,8 @@ def train() -> list[str]:
 
             trainer.fit(model, datamodule=dm)
 
-            ckpt_cb = next(cb for cb in callbacks if isinstance(cb, ModelCheckpoint))
-
             submission_path = f"./output/submission_fold_{fold}.csv"
-            test(checkpoint_path=ckpt_cb.best_model_path, submission_path=submission_path)
+            test(model, submission_path=submission_path)
             submission_paths.append(submission_path)
 
         return submission_paths
@@ -66,6 +52,5 @@ def train() -> list[str]:
     dm = DriverDataModule(**cfg.data)
     trainer.fit(model, datamodule=dm)
 
-    ckpt_cb = next(cb for cb in callbacks if isinstance(cb, ModelCheckpoint))
-    test(ckpt_cb.best_model_path)
+    test(model)
     return ["./output/submission.csv"]

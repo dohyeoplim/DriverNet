@@ -8,6 +8,7 @@ trainer:
     devices: auto
     precision: "bf16-mixed"
     strategy: "auto"
+    enable_checkpointing: False
 
 model:
     name: "vgg16_bn_depthg"
