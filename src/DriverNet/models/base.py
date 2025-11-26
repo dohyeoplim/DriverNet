@@ -26,6 +26,7 @@ class BaseModel(L.LightningModule):
         weight_decay: float,
         scheduler: Literal["onecycle", "none"],
         label_smoothing: float = 0,
+        temperature: float = 1.0,
         consistency_loss_type: Literal["kd", "mse"] = "kd",
         consistency_rampup_steps: float = 0.2,
         final_consistency_weight: float = 1.0,
@@ -45,6 +46,7 @@ class BaseModel(L.LightningModule):
         self.weight_decay = weight_decay
         self.scheduler = scheduler
         self.label_smoothing = label_smoothing
+        self.temperature = temperature
         self.consistency_loss_type = consistency_loss_type
         self.consistency_rampup_steps = consistency_rampup_steps
         self.final_consistency_weight = final_consistency_weight
@@ -144,8 +146,11 @@ class BaseModel(L.LightningModule):
         ce_loss = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing)
 
         if self.consistency_loss_type == "kd":
+            T = self.temperature
             def loss_fn(s_logits, t_logits):
-                return F.kl_div(F.log_softmax(s_logits, dim=-1), F.softmax(t_logits.detach(), dim=-1), reduction="batchmean")
+                s_log_probs = F.log_softmax(s_logits / T, dim=-1)
+                t_probs = F.softmax(t_logits.detach() / T, dim=-1)
+                return F.kl_div(s_log_probs, t_probs, reduction="batchmean") * (T * T)
         elif self.consistency_loss_type == "mse":
             def loss_fn(s_logits, t_logits):
                 return F.mse_loss(s_logits, t_logits.detach())
@@ -174,7 +179,7 @@ class BaseModel(L.LightningModule):
 
             val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
             self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log("val_logloss", val_nll, logger=False)
+            self.log("val_logloss", val_nll, on_epoch=True, on_step=False, sync_dist=True, logger=False)
         return loss
 
     def training_step(self, batch, batch_idx):

@@ -6,34 +6,35 @@ trainer:
     max_epochs: 30
     accelerator: auto
     devices: auto
-    precision: "32"
+    precision: "bf16-mixed"
     strategy: "auto"
 
 model:
-    name: "resnet101_depthg"
+    name: "vgg16_bn_depthg"
     num_classes: 10
     pretrained: true
-    lr: 3e-4
+    lr: 3e-3
     image_size: 384
-    weight_decay: 8e-3
+    weight_decay: 8e-2
     scheduler: "onecycle"
     label_smoothing: 0.0
-    consistency_loss_type: "mse"
-    max_logit_norm: 5.0
+    temperature: 4.0
+    consistency_loss_type: "kd"
+    max_logit_norm: 10.0
     ema_decay: 0.999
-    ema_warmup_steps: 100
-    consistency_rampup_steps: 50
+    ema_warmup_steps: 30
+    consistency_rampup_steps: 0.2
     final_consistency_weight: 1.0
 
 data:
     original_data_dir: "input/original/train"
     depth_data_dir: "input/processed_depth/train"
     csv_path: "input/driver_imgs_list.csv"
-    batch_size: 128
-    num_workers: 4
+    batch_size: 64
+    num_workers: 8
     pin_memory: True
     persistent_workers: True
-    prefetch_factor: 2
+    prefetch_factor: 8
     image_size: 384
     flip_p: 0
     validation_split: 0.2
@@ -44,9 +45,9 @@ data_test:
     predict_dir: "/teamspace/studios/dataset/input/original/test"
     depth_data_dir: "/teamspace/studios/dataset/input/processed_depth/test"
     batch_size: 64
-    num_workers: 6
+    num_workers: 8
     pin_memory: True
     persistent_workers: True
-    prefetch_factor: 2
+    prefetch_factor: 8
     image_size: 384
     flip_p: 0
