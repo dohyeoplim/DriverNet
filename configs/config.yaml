@@ -10,30 +10,31 @@ trainer:
     strategy: "auto"
 
 model:
-    name: "resnet152_depthg"
+    name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
     lr: 3e-4
-    weight_decay: 8e-4
+    image_size: 384
+    weight_decay: 8e-3
     scheduler: "onecycle"
     label_smoothing: 0.0
-    consistency_loss_type: "kd"
+    consistency_loss_type: "mse"
     max_logit_norm: 5.0
     ema_decay: 0.999
-    ema_warmup_steps: 40
-    consistency_rampup_steps: 40
+    ema_warmup_steps: 100
+    consistency_rampup_steps: 50
     final_consistency_weight: 1.0
 
 data:
-    original_data_dir: "/teamspace/studios/dataset/input/original/train"
-    depth_data_dir: "/teamspace/studios/dataset/input/processed_depth/train"
-    csv_path: "/teamspace/studios/dataset/input/driver_imgs_list.csv"
-    batch_size: 312
-    num_workers: 11
+    original_data_dir: "input/original/train"
+    depth_data_dir: "input/processed_depth/train"
+    csv_path: "input/driver_imgs_list.csv"
+    batch_size: 128
+    num_workers: 4
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 2
-    image_size: 224
+    image_size: 384
     flip_p: 0
     validation_split: 0.2
     num_folds: 0
@@ -42,10 +43,10 @@ data:
 data_test:
     predict_dir: "/teamspace/studios/dataset/input/original/test"
     depth_data_dir: "/teamspace/studios/dataset/input/processed_depth/test"
-    batch_size: 256
-    num_workers: 11
+    batch_size: 64
+    num_workers: 6
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 2
-    image_size: 224
+    image_size: 384
     flip_p: 0

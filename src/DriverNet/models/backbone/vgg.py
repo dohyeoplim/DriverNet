@@ -10,6 +10,7 @@ def load_vgg(
     model: vgg_model_names = "16",
     num_classes: int = 10,
     pretrained: bool = True,
+    image_size: int = 224,
 ):
     depthg = model.endswith("_depthg")
     base_name = model.replace("_depthg", "")
@@ -32,7 +33,7 @@ def load_vgg(
     backbone = ctor(weights=weights)
 
     if depthg:
-        return DepthGroupedVGG(backbone, num_classes=num_classes, img_size=224)
+        return DepthGroupedVGG(backbone, num_classes=num_classes, img_size=image_size)
 
     assert isinstance(backbone.classifier, nn.Sequential)
     last_layer = backbone.classifier[-1]

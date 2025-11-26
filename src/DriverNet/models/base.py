@@ -56,7 +56,7 @@ class BaseModel(L.LightningModule):
 
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
-        self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained)
+        self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained, image_size=self.image_size)
         model_name_lower = self.name.lower()
         self._uses_depth: bool = ("depthg" in model_name_lower) or ("depthgrouped" in type(self.model).__name__.lower())
 

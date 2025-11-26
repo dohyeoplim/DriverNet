@@ -10,6 +10,7 @@ def load_resnet(
     model: str = "50",
     num_classes: int = 10,
     pretrained: bool = True,
+    image_size: int = 224,
 ) -> ResNet | DepthGroupedResNet:
     if "depthg" in model:
         base_name = model.replace("_depthg", "")
@@ -26,6 +27,7 @@ def load_resnet(
             backbone=backbone,
             num_classes=num_classes,
             model_name=base_name,
+            img_size=image_size,
         )
         return depth_model
 
