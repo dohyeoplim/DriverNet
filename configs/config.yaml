@@ -13,18 +13,18 @@ model:
     name: "vgg16_bn_depthg"
     num_classes: 10
     pretrained: true
-    lr: 3e-3
+    lr: 1e-3
     image_size: 384
-    weight_decay: 8e-2
+    weight_decay: 8e-4
     scheduler: "onecycle"
-    label_smoothing: 0.0
-    temperature: 4.0
+    label_smoothing: 0.05
+    temperature: 3.0
     consistency_loss_type: "kd"
     max_logit_norm: 10.0
     ema_decay: 0.999
-    ema_warmup_steps: 30
-    consistency_rampup_steps: 0.2
-    final_consistency_weight: 1.0
+    ema_warmup_steps: 100
+    consistency_rampup_steps: 0.5
+    final_consistency_weight: 0.5
 
 data:
     original_data_dir: "input/original/train"
