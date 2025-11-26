@@ -36,7 +36,7 @@ data:
     persistent_workers: True
     prefetch_factor: 8
     image_size: 384
-    flip_p: 0
+    flip_p: 0.5
     validation_split: 0.2
     num_folds: 0
     fold_index: 0
@@ -50,4 +50,4 @@ data_test:
     persistent_workers: True
     prefetch_factor: 8
     image_size: 384
-    flip_p: 0
+    flip_p: 0.5
