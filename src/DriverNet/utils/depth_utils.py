@@ -7,6 +7,11 @@ def masked_avg_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     den = mask.sum(dim=(2, 3)).clamp_min(1.0)
     return num / den
 
+def masked_max_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    mask = mask.expand_as(feat)
+    feat_masked = torch.where(mask, feat, torch.tensor(-torch.inf, dtype=feat.dtype, device=feat.device))
+    return F.adaptive_max_pool2d(feat_masked, (1, 1)).squeeze()
+
 def compute_depth_groups(depth: torch.Tensor, feat: torch.Tensor):
     B, C, Hf, Wf = feat.shape
     depth_r = F.interpolate(depth, (Hf, Wf), mode="bilinear", align_corners=False)

@@ -1,23 +1,32 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.DriverNet.utils.depth_utils import compute_depth_groups, masked_avg_pool
+from src.DriverNet.utils.depth_utils import compute_depth_groups, masked_avg_pool, masked_max_pool
 
 def depth_group_pooled_features(feat: torch.Tensor, depth: torch.Tensor) -> torch.Tensor:
-    # B, C, Hf, Wf = feat.shape
-
     depth_r, q1, q2 = compute_depth_groups(depth, feat)
     mask_near = depth_r <= q1
     mask_mid  = (depth_r > q1) & (depth_r <= q2)
     mask_far  = depth_r > q2
 
-    f_global = feat.mean(dim=(2, 3))
+    f_global_avg = feat.mean(dim=(2, 3))
+    f_global_max = F.adaptive_max_pool2d(feat, (1, 1)).squeeze()
 
-    f_near = masked_avg_pool(feat, mask_near)
-    f_mid  = masked_avg_pool(feat, mask_mid)
-    f_far  = masked_avg_pool(feat, mask_far)
+    f_near_avg = masked_avg_pool(feat, mask_near)
+    f_near_max = masked_max_pool(feat, mask_near)
 
-    return torch.cat([f_global, f_near, f_mid, f_far], dim=1)
+    f_mid_avg = masked_avg_pool(feat, mask_mid)
+    f_mid_max = masked_max_pool(feat, mask_mid)
+
+    f_far_avg = masked_avg_pool(feat, mask_far)
+    f_far_max = masked_max_pool(feat, mask_far)
+
+    return torch.cat([
+        f_global_avg, f_global_max,
+        f_near_avg, f_near_max,
+        f_mid_avg, f_mid_max,
+        f_far_avg, f_far_max,
+    ], dim=1)
 
 class DepthGroupedHead(nn.Module):
     def __init__(
@@ -27,7 +36,7 @@ class DepthGroupedHead(nn.Module):
         dropout: float = 0.3,
     ):
         super().__init__()
-        in_dim = feat_dim * 4
+        in_dim = feat_dim * 8
         hidden1 = in_dim // 2
         hidden2 = hidden1 // 2
 
