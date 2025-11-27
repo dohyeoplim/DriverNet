@@ -8,13 +8,19 @@ def test(model: BaseModel, submission_path: str = "./output/submission.csv") -> 
     cfg = OmegaConf.load("configs/config.yaml")
     assert isinstance(cfg, DictConfig)
 
+    model.eval()
+    model.freeze()
+
     dm = DriverDataModule(**cfg.data_test)
 
     dm.setup(stage="predict")
 
-    trainer = L.Trainer(**cfg.trainer)
+    trainer = L.Trainer(
+        **cfg.trainer,
+        logger=False,
+    )
 
-    outputs = trainer.predict(model, datamodule=dm)
+    trainer.predict(model, datamodule=dm, return_predictions=False)
 
-    if trainer.is_global_zero:
-        create_submission(outputs, submission_path) # type: ignore
+    if trainer.global_rank == 0:
+        create_submission(submission_path)

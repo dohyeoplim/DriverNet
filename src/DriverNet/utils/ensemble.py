@@ -6,6 +6,10 @@ def average_predictions(submission_paths: List[str], output_path: str) -> None:
         print("No submission files to average.")
         return
 
+    if len(submission_paths) == 1:
+        print(f"Submission saved to {output_path}")
+        return
+
     all_submissions = [pd.read_csv(path) for path in submission_paths]
 
     image_col = all_submissions[0].columns[0]

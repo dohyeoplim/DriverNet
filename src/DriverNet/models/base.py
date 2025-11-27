@@ -8,6 +8,7 @@ from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from typing import Literal, Optional
 import math
+from pathlib import Path
 
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
@@ -81,6 +82,9 @@ class BaseModel(L.LightningModule):
 
         self._IMGNET_NORMALIZE = K.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._max_entropy = math.log(self.num_classes)
+
+        self._preds_buffer: list[torch.Tensor] = []
+        self._names_buffer: list[str] = []
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         self.teacher_ema.update()
@@ -240,15 +244,37 @@ class BaseModel(L.LightningModule):
             )
             self.print(f"Saved: {save_dir}/teacher.png")
 
-    def predict_step(self, batch, batch_idx):
+    def predict_step(self, batch, batch_idx, dataloader_idx: int = 0):
         x = batch["pixel_values"]
-        depth = batch.get("depth") if self._uses_depth else None
+        depth = batch.get("depth") if getattr(self, "_uses_depth", False) else None
         x = self._IMGNET_NORMALIZE(x)
 
         logits = self.teacher_forward(x, depth)
         logits = self._maybe_clip_logits(logits)
         probs = F.softmax(logits, dim=1)
-        return {"preds": probs, "img_name": batch["img_name"]}
+
+        self._preds_buffer.append(probs.detach().cpu())
+        self._names_buffer.extend(batch["img_name"])
+
+        return None
+
+    def on_predict_epoch_end(self, results):
+        if not self._preds_buffer:
+            return
+
+        preds = torch.cat(self._preds_buffer, dim=0)
+        names = self._names_buffer
+
+        rank = self.trainer.global_rank
+        out_dir = Path("output/predictions")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = out_dir / f"preds_rank{rank}.pt"
+
+        torch.save({"preds": preds, "img_name": names}, shard_path)
+        self.print(f"[rank {rank}] saved {len(names)} preds to {shard_path}")
+
+        self._preds_buffer.clear()
+        self._names_buffer.clear()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         opt = AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)

@@ -38,10 +38,10 @@ def main():
         train()
         return
 
-    if args.test:
-        from src.DriverNet.core.test import test
-        test(checkpoint_path=args.checkpoint_path, submission_path=args.submission_path)
-        return
+    # if args.test:
+    #     from src.DriverNet.core.test import test
+    #     test(checkpoint_path=args.checkpoint_path, submission_path=args.submission_path)
+    #     return
 
     if args.train_and_submit:
         from src.DriverNet.core.train import train

@@ -31,7 +31,7 @@ def train() -> list[str]:
             model = BaseModel(**cfg.model)
             callbacks = _build_callbacks(monitor="val/logloss", mode="min", fold_idx=fold)
 
-            trainer = L.Trainer(**cfg.trainer, log_every_n_steps=10, callbacks=callbacks, logger=wandb_logger)
+            trainer = L.Trainer(**cfg.trainer, callbacks=callbacks, logger=wandb_logger)
 
             data_cfg = cfg.data.copy()
             data_cfg["fold_index"] = fold
@@ -48,7 +48,7 @@ def train() -> list[str]:
     model = BaseModel(**cfg.model)
     callbacks = _build_callbacks(monitor="val/logloss", mode="min")
 
-    trainer = L.Trainer(**cfg.trainer, log_every_n_steps=20, callbacks=callbacks, logger=wandb_logger)
+    trainer = L.Trainer(**cfg.trainer, callbacks=callbacks, logger=wandb_logger)
     dm = DriverDataModule(**cfg.data)
     trainer.fit(model, datamodule=dm)
 
