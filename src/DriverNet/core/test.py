@@ -16,4 +16,5 @@ def test(model: BaseModel, submission_path: str = "./output/submission.csv") -> 
 
     outputs = trainer.predict(model, datamodule=dm)
 
-    create_submission(outputs, submission_path) # type: ignore
+    if trainer.is_global_zero:
+        create_submission(outputs, submission_path) # type: ignore
