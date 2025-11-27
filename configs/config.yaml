@@ -13,7 +13,7 @@ model:
     name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
-    lr: 3e-4
+    lr: 3e-5
     image_size: 384
     weight_decay: 5e-2
     scheduler: "onecycle"
@@ -21,10 +21,10 @@ model:
     consistency_loss_type: "mse"
     # temperature: 5.0
     max_logit_norm: 10.0
-    ema_decay: 0.0
-    ema_warmup_steps: 0
-    consistency_rampup_steps: 0.0
-    final_consistency_weight: 0.0
+    ema_decay: 0.9999
+    ema_warmup_steps: 100
+    consistency_rampup_steps: 0.6
+    final_consistency_weight: 1.0
 
 data:
     original_data_dir: "../input/original/train"

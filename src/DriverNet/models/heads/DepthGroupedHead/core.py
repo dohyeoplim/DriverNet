@@ -45,11 +45,11 @@ class DepthGroupedHead(nn.Module):
         self,
         feat_dim: int,
         num_classes: int,
-        dropout: float = 0.4,
+        dropout: float = 0.1,
     ):
         super().__init__()
 
-        conv_out_dim = feat_dim * 4
+        conv_out_dim = feat_dim * 2
         in_dim = conv_out_dim
         hidden1 = in_dim
         hidden2 = hidden1 // 2
@@ -111,11 +111,11 @@ class DepthGroupedHead(nn.Module):
 #         self,
 #         feat_dim: int,
 #         num_classes: int,
-#         dropout: float = 0.4,
+#         dropout: float = 0.1,
 #     ):
 #         super().__init__()
 #         in_dim = feat_dim * 4
-#         hidden1 = in_dim
+#         hidden1 = in_dim // 2
 #         hidden2 = hidden1 // 2
 
 #         self.pre_norm = nn.LayerNorm(in_dim)
