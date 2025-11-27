@@ -16,7 +16,15 @@ def _build_callbacks(monitor: str, mode: str, fold_idx: int | None = None) -> li
         check_finite=True,
         verbose=True,
     )
-    return [earlyStopping]
+    checkpoint_callback = ModelCheckpoint(
+        monitor=monitor,
+        mode=mode,
+        save_top_k=1,
+        dirpath="./output/checkpoints",
+        filename=f"best_model_fold_{fold_idx}" if fold_idx is not None else "best_model",
+        auto_insert_metric_name=True,
+    )
+    return [earlyStopping, checkpoint_callback]
 
 def train() -> list[str]:
     cfg = OmegaConf.load("configs/config.yaml")
@@ -40,7 +48,9 @@ def train() -> list[str]:
             trainer.fit(model, datamodule=dm)
 
             submission_path = f"./output/submission_fold_{fold}.csv"
-            test(model, submission_path=submission_path)
+            checkpoint_callback = trainer.checkpoint_callback
+            assert isinstance(checkpoint_callback, ModelCheckpoint)
+            test(checkpoint_path=checkpoint_callback.best_model_path, submission_path=submission_path)
             submission_paths.append(submission_path)
 
         return submission_paths
@@ -52,5 +62,7 @@ def train() -> list[str]:
     dm = DriverDataModule(**cfg.data)
     trainer.fit(model, datamodule=dm)
 
-    test(model)
+    checkpoint_callback = trainer.checkpoint_callback
+    assert isinstance(checkpoint_callback, ModelCheckpoint)
+    test(checkpoint_path=checkpoint_callback.best_model_path)
     return ["./output/submission.csv"]
