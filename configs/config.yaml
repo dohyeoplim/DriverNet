@@ -8,36 +8,34 @@ trainer:
     devices: auto
     precision: "bf16-mixed"
     strategy: "auto"
-    enable_checkpointing: False
 
 model:
-    name: "googlenet_depthg"
+    name: "resnet101_depthg"
     num_classes: 10
     pretrained: true
-    lr: 8e-4
+    lr: 3e-4
     image_size: 384
-    weight_decay: 5e-5
+    weight_decay: 5e-2
     scheduler: "onecycle"
-    label_smoothing: 0.03
-    temperature: 4.0
-    consistency_loss_type: "kd"
-    max_logit_norm: 6.0
-    ema_decay: 0.999
-    ema_warmup_steps: 130
-    consistency_rampup_steps: 0.2
-    final_consistency_weight: 0.3
+    label_smoothing: 0.0
+    consistency_loss_type: "mse"
+    # temperature: 5.0
+    max_logit_norm: 10.0
+    ema_decay: 0.0
+    ema_warmup_steps: 0
+    consistency_rampup_steps: 0.0
+    final_consistency_weight: 0.0
 
 data:
     original_data_dir: "../input/original/train"
     depth_data_dir: "../input/processed_depth/train"
     csv_path: "../input/driver_imgs_list.csv"
-    batch_size: 128
-    num_workers: 20
+    batch_size: 256
+    num_workers: 12
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 8
     image_size: 384
-    flip_p: 0.0
     validation_split: 0.2
     num_folds: 0
     fold_index: 0
@@ -45,10 +43,9 @@ data:
 data_test:
     predict_dir: "../input/original/test"
     depth_data_dir: "../input/processed_depth/test"
-    batch_size: 128
-    num_workers: 20
+    batch_size: 512
+    num_workers: 8
     pin_memory: True
     persistent_workers: True
-    prefetch_factor: 8
+    prefetch_factor: 4
     image_size: 384
-    flip_p: 0.0

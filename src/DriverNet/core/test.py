@@ -23,9 +23,9 @@ def test(model: BaseModel | None = None, checkpoint_path: str | None = None, sub
     trainer = L.Trainer(
         **cfg.trainer,
         logger=False,
+        enable_checkpointing=False,
     )
 
-    trainer.predict(model, datamodule=dm, return_predictions=False)
+    outputs = trainer.predict(model, datamodule=dm)
 
-    if trainer.global_rank == 0:
-        create_submission(submission_path)
+    create_submission(outputs, submission_path) # type: ignore

@@ -17,7 +17,7 @@ class DriverDataModule(L.LightningDataModule):
         pin_memory: bool,
         prefetch_factor: int,
         image_size: int,
-        flip_p: float,
+        flip_p: float = 0.0,
         validation_split: Optional[float] = None,
         num_folds: Optional[int] = None,
         fold_index: int = 0,
