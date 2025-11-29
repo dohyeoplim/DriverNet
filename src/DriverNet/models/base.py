@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import kornia.augmentation as K
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler, LinearLR, OneCycleLR, SequentialLR
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from typing import Literal, Optional
 import math
@@ -24,7 +24,8 @@ class BaseModel(L.LightningModule):
         pretrained: bool,
         lr: float,
         weight_decay: float,
-        scheduler: Literal["onecycle", "none"],
+        scheduler: Literal["onecycle", "warmup_cosine", "none"],
+        warmup_pct: float = 0.15,
         label_smoothing: float = 0,
         temperature: float = 1.0,
         consistency_loss_type: Literal["kd", "mse"] = "kd",
@@ -45,6 +46,7 @@ class BaseModel(L.LightningModule):
         self.lr = lr
         self.weight_decay = weight_decay
         self.scheduler = scheduler
+        self.warmup_pct = warmup_pct
         self.label_smoothing = label_smoothing
         self.temperature = temperature
         self.consistency_loss_type = consistency_loss_type
@@ -127,7 +129,7 @@ class BaseModel(L.LightningModule):
         y = batch["labels"].long()
 
         if self.training:
-            x0 = self._augmentations(x0)
+            x0, depth = self._augmentations(x0, depth)
             x0 = self._IMGNET_NORMALIZE(x0)
         else:
             x0 = self._IMGNET_NORMALIZE(x0)
@@ -256,14 +258,14 @@ class BaseModel(L.LightningModule):
         if self.scheduler == "none":
             return opt
 
+        if self.trainer is None:
+            raise RuntimeError("Trainer not attached")
+
+        total_steps = int(self.trainer.estimated_stepping_batches)
+        self.total_steps = total_steps
+        self.consistency_rampup_steps = int(self.consistency_rampup_steps * total_steps)
+
         if self.scheduler == "onecycle":
-            if self.trainer is None:
-                raise RuntimeError("Trainer not attached")
-
-            total_steps = int(self.trainer.estimated_stepping_batches)
-            self.total_steps = total_steps
-            self.consistency_rampup_steps = int(self.consistency_rampup_steps * total_steps)
-
             sched: LRScheduler = OneCycleLR(
                 opt,
                 max_lr=self.lr,
@@ -273,7 +275,12 @@ class BaseModel(L.LightningModule):
                 final_div_factor=500.0,
                 anneal_strategy="cos",
             )
+        elif self.scheduler == "warmup_cosine":
+            warmup_steps = int(self.warmup_pct * total_steps)
+            warmup = LinearLR(opt, start_factor=1e-3, total_iters=warmup_steps)
+            cosine = CosineAnnealingLR(opt, T_max=max(1, total_steps - warmup_steps), eta_min=1e-6)
+            sched = SequentialLR(opt, schedulers=[warmup, cosine], milestones=[warmup_steps])
+        else:
+            return opt
 
-            return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}
-
-        return opt
+        return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}

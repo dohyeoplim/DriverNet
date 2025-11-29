@@ -13,29 +13,30 @@ model:
     name: "resnet50_depthg"
     num_classes: 10
     pretrained: true
-    lr: 3e-4
-    image_size: 224
+    lr: 1e-4
+    image_size: 384
     weight_decay: 5e-2
-    scheduler: "onecycle"
-    label_smoothing: 0.0
+    scheduler: "warmup_cosine"
+    warmup_pct: 0.15
+    label_smoothing: 0.1
     consistency_loss_type: "kd"
-    temperature: 5.0
+    temperature: 4.0
     max_logit_norm: 10.0
     ema_decay: 0.999
     ema_warmup_steps: 100
-    consistency_rampup_steps: 0.2
+    consistency_rampup_steps: 0.25
     final_consistency_weight: 1.0
 
 data:
     original_data_dir: "../input/original/train"
     depth_data_dir: "../input/processed_depth/train"
     csv_path: "../input/driver_imgs_list.csv"
-    batch_size: 256
+    batch_size: 128
     num_workers: 12
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 8
-    image_size: 224
+    image_size: 384
     validation_split: 0.2
     num_folds: 0
     fold_index: 0
@@ -48,4 +49,4 @@ data_test:
     pin_memory: True
     persistent_workers: True
     prefetch_factor: 4
-    image_size: 224
+    image_size: 384

@@ -1,13 +1,30 @@
+import torch
 import torch.nn as nn
 import kornia.augmentation as K
+from typing import Optional, Tuple
 
 class Augmentations(nn.Module):
     def __init__(self, img_size: int):
         super().__init__()
         self.img_size = img_size
-        self.augmentations = K.AugmentationSequential(
-            # K.RandomResizedCrop((img_size, img_size), scale=(0.75, 1.0), p=1.0),
-            # K.RandomHorizontalFlip(p=0.5),
+
+        self.geometric_augs = K.AugmentationSequential(
+            K.RandomResizedCrop((img_size, img_size), scale=(0.7, 1.0), p=1.0, same_on_batch=False),
+            K.RandomHorizontalFlip(p=0.5, same_on_batch=False),
+            K.RandomAffine(
+                degrees=(-20, 20),
+                translate=(0.15, 0.15),
+                scale=(0.8, 1.2),
+                shear=(-10, 10),
+                p=0.8,
+                same_on_batch=False,
+            ),
+            K.RandomPerspective(distortion_scale=0.25, p=0.5, same_on_batch=False),
+            K.RandomErasing(p=0.25, scale=(0.02, 0.25), same_on_batch=False),
+            data_keys=["input", "mask"],
+        )
+
+        self.photometric_augs = K.AugmentationSequential(
             K.ColorJitter(
                 brightness=(0.7, 1.3),
                 contrast=(0.7, 1.3),
@@ -15,19 +32,21 @@ class Augmentations(nn.Module):
                 hue=(-0.08, 0.08),
                 p=0.8,
             ),
-            # K.RandomAffine(
-            #     degrees=(-15, 15),
-            #     translate=(0.1, 0.1),
-            #     scale=(0.85, 1.15),
-            #     shear=(-8, 8),
-            #     p=0.8,
-            # ),
-            # K.RandomPerspective(distortion_scale=0.2, p=0.5),
             K.RandomGaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.5), p=0.5),
             K.RandomSolarize(thresholds=0.5, p=0.1),
-            # K.RandomErasing(p=0.2, scale=(0.02, 0.2)),
             data_keys=["input"],
         )
 
-    def forward(self, x):
-        return self.augmentations(x)
+    @torch.no_grad()
+    def forward(
+        self, x: torch.Tensor, depth: Optional[torch.Tensor]
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+
+        if depth is not None:
+            x, depth = self.geometric_augs(x, depth)
+        else:
+            x = self.geometric_augs(x, None)
+
+        x = self.photometric_augs(x)
+
+        return x, depth
