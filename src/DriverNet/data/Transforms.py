@@ -9,7 +9,7 @@ class Augmentations(nn.Module):
         self.img_size = img_size
 
         self.geometric_augs = K.AugmentationSequential(
-            K.RandomResizedCrop((img_size, img_size), scale=(0.7, 1.0), p=1.0, same_on_batch=False),
+            K.RandomResizedCrop((img_size, img_size), scale=(0.7, 1.0), p=1.0, same_on_batch=False, align_corners=True),
             K.RandomHorizontalFlip(p=0.5, same_on_batch=False),
             K.RandomAffine(
                 degrees=(-20, 20),
@@ -18,8 +18,9 @@ class Augmentations(nn.Module):
                 shear=(-10, 10),
                 p=0.8,
                 same_on_batch=False,
+                align_corners=True,
             ),
-            K.RandomPerspective(distortion_scale=0.25, p=0.5, same_on_batch=False),
+            K.RandomPerspective(distortion_scale=0.25, p=0.5, same_on_batch=False, align_corners=True),
             K.RandomErasing(p=0.25, scale=(0.02, 0.25), same_on_batch=False),
             data_keys=["input", "mask"],
         )
