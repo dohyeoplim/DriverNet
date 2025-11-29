@@ -79,6 +79,8 @@ class DepthGroupedHead(nn.Module):
         interaction_dim = feat_dim * 2
         self.global_proj = nn.Linear(global_dim, interaction_dim)
         self.depth_proj = nn.Linear(depth_dim, interaction_dim)
+        self.norm_global = nn.LayerNorm(interaction_dim)
+        self.norm_depth = nn.LayerNorm(interaction_dim)
 
         hidden = interaction_dim // 2
         self.pre_norm = nn.LayerNorm(interaction_dim)
@@ -99,8 +101,8 @@ class DepthGroupedHead(nn.Module):
         gate = self.gate_net(global_features)
         gated_depth_features = depth_features * gate
 
-        proj_global = self.global_proj(global_features)
-        proj_depth = self.depth_proj(gated_depth_features)
+        proj_global = self.norm_global(self.global_proj(global_features))
+        proj_depth = self.norm_depth(self.depth_proj(gated_depth_features))
         interaction_vec = proj_global * proj_depth
 
         x = self.pre_norm(interaction_vec)
