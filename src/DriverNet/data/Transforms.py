@@ -25,7 +25,7 @@ class Augmentations(nn.Module):
             # K.RandomPerspective(distortion_scale=0.2, p=0.5),
             K.RandomGaussianBlur(kernel_size=(3, 3), sigma=(0.1, 2.5), p=0.5),
             K.RandomSolarize(thresholds=0.5, p=0.1),
-            K.RandomErasing(p=0.2, scale=(0.02, 0.2)),
+            # K.RandomErasing(p=0.2, scale=(0.02, 0.2)),
             data_keys=["input"],
         )
 

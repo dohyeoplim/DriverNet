@@ -268,11 +268,8 @@ class BaseModel(L.LightningModule):
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                # pct_start=0.1,
-                # div_factor=10.0,
-                # final_div_factor=100.0,
-                pct_start=0.25,
-                div_factor=25.0,
+                pct_start=0.1,
+                div_factor=10.0,
                 final_div_factor=500.0,
                 anneal_strategy="cos",
             )

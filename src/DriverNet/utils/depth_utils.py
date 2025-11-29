@@ -14,7 +14,7 @@ def masked_max_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
 
 def compute_depth_groups(depth: torch.Tensor, feat: torch.Tensor):
     B, C, Hf, Wf = feat.shape
-    depth_r = F.interpolate(depth, (Hf, Wf), mode="bilinear", align_corners=False)
+    depth_r = F.interpolate(depth, (Hf, Wf), mode="bicubic", align_corners=False)
     depth_flat = depth_r.view(B, -1)
 
     qs = torch.quantile(depth_flat, torch.tensor([0.33, 0.66], device=depth.device), dim=1)
