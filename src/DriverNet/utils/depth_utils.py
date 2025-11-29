@@ -28,8 +28,10 @@ def masked_max_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
 
     pooled = F.adaptive_max_pool2d(feat_masked, (1, 1)).squeeze(-1).squeeze(-1)
 
+    condition = mask_sum.squeeze(-1).squeeze(-1) > 0
+
     safe_max = torch.where(
-        (mask_sum.squeeze() > 0).expand_as(pooled),
+        condition,
         pooled,
         torch.zeros_like(pooled)
     )
