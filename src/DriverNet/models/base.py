@@ -175,7 +175,6 @@ class BaseModel(L.LightningModule):
             teacher_probs = F.softmax(teacher_logits_x0, dim=-1)
             self.val_acc_student.update(student_probs, y)
             self.val_acc_teacher.update(teacher_probs, y)
-
             self.val_confmat_student.update(student_probs, y)
             self.val_confmat_teacher.update(teacher_probs, y)
 
