@@ -4,8 +4,8 @@ import torch.nn.functional as F
 def masked_avg_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     mask = mask.float().expand_as(feat)
     num = (feat * mask).sum(dim=(2, 3))
-    den = mask.sum(dim=(2, 3)).clamp_min(1.0)
-    return num / den
+    den = mask.sum(dim=(2, 3))
+    return num / (den + 1e-6)
 
 def masked_max_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     mask = mask.expand_as(feat)
