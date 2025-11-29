@@ -2,19 +2,42 @@ import torch
 import torch.nn.functional as F
 
 def masked_avg_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    mask = mask.float().expand_as(feat)
-    num = (feat * mask).sum(dim=(2, 3))
-    den = mask.sum(dim=(2, 3))
-    return num / (den + 1e-6)
+    B, C, H, W = feat.shape
+    mask_sum = mask.sum(dim=(-1, -2), keepdim=True)
+    mask_safe = mask.float().expand_as(feat)
+
+    num = (feat * mask_safe).sum(dim=(2, 3))
+    den = mask_safe.sum(dim=(2, 3))
+
+    safe_avg = torch.where(
+        (den > 0),
+        num / (den + 1e-6),
+        torch.zeros_like(num)
+    )
+    return safe_avg
 
 def masked_max_pool(feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    mask = mask.expand_as(feat)
-    feat_masked = torch.where(mask, feat, torch.tensor(-torch.inf, dtype=feat.dtype, device=feat.device))
-    return F.adaptive_max_pool2d(feat_masked, (1, 1)).squeeze()
+    B, C, H, W = feat.shape
+    mask_sum = mask.sum(dim=(-1, -2), keepdim=True)
+
+    feat_masked = torch.where(
+        mask.expand_as(feat),
+        feat,
+        torch.full_like(feat, -torch.inf)
+    )
+
+    pooled = F.adaptive_max_pool2d(feat_masked, (1, 1)).squeeze(-1).squeeze(-1)
+
+    safe_max = torch.where(
+        (mask_sum.squeeze() > 0).expand_as(pooled),
+        pooled,
+        torch.zeros_like(pooled)
+    )
+    return safe_max
 
 def compute_depth_groups(depth: torch.Tensor, feat: torch.Tensor):
     B, C, Hf, Wf = feat.shape
-    depth_r = F.interpolate(depth, (Hf, Wf), mode="bicubic", align_corners=False)
+    depth_r = F.interpolate(depth, (Hf, Wf), mode="bicubic", align_corners=True)
     depth_flat = depth_r.view(B, -1)
 
     qs = torch.quantile(depth_flat, torch.tensor([0.33, 0.66], device=depth.device), dim=1)
