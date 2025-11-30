@@ -31,10 +31,11 @@ def train() -> list[str]:
     assert isinstance(cfg, DictConfig)
 
     num_folds = cfg.data.get("num_folds")
+    start_fold = cfg.data.get("start_fold", 0)
 
     if num_folds is not None and num_folds > 1:
         submission_paths = []
-        for fold in range(num_folds):
+        for fold in range(start_fold, num_folds):
             print(f"Training fold {fold + 1}/{num_folds}")
             model = BaseModel(**cfg.model)
             callbacks = _build_callbacks(monitor="val/logloss", mode="min", fold_idx=fold)
