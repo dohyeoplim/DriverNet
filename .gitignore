@@ -248,3 +248,4 @@ wandb/
 *.ckpt
 *.tar.gz
 *.zip
+*.tar

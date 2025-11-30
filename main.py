@@ -7,6 +7,7 @@ warnings.filterwarnings("ignore", message=".*TF32.*")
 warnings.filterwarnings("ignore", message=".*Checkpoint directory*")
 warnings.filterwarnings("ignore", message=".*Precision bf16-mixed is not supported by the model summary.*")
 warnings.filterwarnings("ignore", message=".*eval mode at the start of training*")
+warnings.filterwarnings("ignore", message=".*grid_sample and affine_grid behavior*")
 
 torch.set_float32_matmul_precision("high")
 torch.backends.cuda.matmul.fp32_precision = "ieee"

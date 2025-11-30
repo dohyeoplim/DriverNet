@@ -3,17 +3,18 @@ from typing import Callable, get_args
 from .alexnet import load_alexnet, alexnet_model_names
 from .resnet import load_resnet, resnet_model_names
 from .vgg import load_vgg, vgg_model_names
-from .googlenet import load_googlenet
+from .googlenet import load_googlenet, googlenet_model_names
 from .vit import load_vit, vit_model_names
 
 MODEL_OPTIONS: dict[str, Callable[..., Module]] = {
-    # "alexnet":   lambda **kw: load_alexnet(**kw),
     **{
         f"alexnet{m}": (lambda m=m, **kw: load_alexnet(m, **kw))
         for m in get_args(alexnet_model_names)
     },
-
-    "googlenet": lambda **kw: load_googlenet(**kw),
+    **{
+        f"googlenet{m}": (lambda m=m, **kw: load_googlenet(m, **kw))
+        for m in get_args(googlenet_model_names)
+    },
     **{
         f"resnet{m}": (lambda m=m, **kw: load_resnet(m, **kw))
         for m in get_args(resnet_model_names)

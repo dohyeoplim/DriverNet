@@ -29,8 +29,5 @@ class EMA:
         for t_param, s_param in zip(self.teacher.parameters(), self.model.parameters()):
             t_param.data.mul_(m).add_(s_param.data, alpha=1.0 - m)
 
-        for t_buf, s_buf in zip(self.teacher.buffers(), self.model.buffers()):
-            t_buf.data.copy_(s_buf.data)
-
     def __call__(self, *args, **kwargs):
         return self.teacher(*args, **kwargs)

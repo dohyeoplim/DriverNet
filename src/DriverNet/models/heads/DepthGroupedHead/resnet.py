@@ -17,6 +17,7 @@ class DepthGroupedResNet(nn.Module):
             backbone.layer1,
             backbone.layer2,
             backbone.layer3,
+            backbone.layer4,
         )
 
         c = infer_feat_dim(self.features, img_size=img_size)

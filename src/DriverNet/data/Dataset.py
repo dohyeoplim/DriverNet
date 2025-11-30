@@ -99,16 +99,15 @@ class DriverDataset(Dataset):
                 "img_name": img_name,
             }
 
-        # if random.random() < self.flip_p:
-        #     x0 = torch.flip(x0, dims=[2])
-        #     x1 = torch.flip(x1, dims=[2])
-        #     x2 = torch.flip(x2, dims=[2])
-        #     if label in FLIP_REMAP:
-        #         label = FLIP_REMAP[label]
-
         assert self.class_to_idx is not None, "class_to_idx must be provided for training/validation"
 
         label_idx = int(self.class_to_idx[class_name])
+
+        if random.random() < self.flip_p:
+            x0 = torch.flip(x0, dims=[2])
+            xd = torch.flip(xd, dims=[2])
+            if label_idx in FLIP_REMAP:
+                label_idx = FLIP_REMAP[label_idx]
 
         return {
             "pixel_values": x0,

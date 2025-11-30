@@ -18,7 +18,6 @@ def create_submission(outputs: Sequence[StepOut], path="submission.csv"):
     if preds.shape[0] != len(names):
         raise ValueError(f"Mismatch: names={len(names)} vs preds={preds.shape[0]}")
 
-
     columns = pd.Index([f"c{i}" for i in range(preds.shape[1])], dtype="object")
     df = pd.DataFrame(data=preds, columns=columns, copy=False)
 

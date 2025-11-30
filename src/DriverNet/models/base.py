@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import kornia.augmentation as K
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler, LinearLR, OneCycleLR, SequentialLR
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from typing import Literal, Optional
 import math
@@ -24,8 +24,10 @@ class BaseModel(L.LightningModule):
         pretrained: bool,
         lr: float,
         weight_decay: float,
-        scheduler: Literal["onecycle", "none"],
+        scheduler: Literal["onecycle", "warmup_cosine", "none"],
+        warmup_pct: float = 0.15,
         label_smoothing: float = 0,
+        temperature: float = 1.0,
         consistency_loss_type: Literal["kd", "mse"] = "kd",
         consistency_rampup_steps: float = 0.2,
         final_consistency_weight: float = 1.0,
@@ -44,7 +46,9 @@ class BaseModel(L.LightningModule):
         self.lr = lr
         self.weight_decay = weight_decay
         self.scheduler = scheduler
+        self.warmup_pct = warmup_pct
         self.label_smoothing = label_smoothing
+        self.temperature = temperature
         self.consistency_loss_type = consistency_loss_type
         self.consistency_rampup_steps = consistency_rampup_steps
         self.final_consistency_weight = final_consistency_weight
@@ -56,7 +60,7 @@ class BaseModel(L.LightningModule):
 
         if self.name not in MODEL_NAMES:
             raise ValueError(f"Invalid model: {self.name}. Available: {MODEL_NAMES}.")
-        self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained)
+        self.model = MODEL_OPTIONS[self.name](num_classes=self.num_classes, pretrained=self.pretrained, image_size=self.image_size)
         model_name_lower = self.name.lower()
         self._uses_depth: bool = ("depthg" in model_name_lower) or ("depthgrouped" in type(self.model).__name__.lower())
 
@@ -125,7 +129,7 @@ class BaseModel(L.LightningModule):
         y = batch["labels"].long()
 
         if self.training:
-            x0 = self._augmentations(x0)
+            x0, depth = self._augmentations(x0, depth)
             x0 = self._IMGNET_NORMALIZE(x0)
         else:
             x0 = self._IMGNET_NORMALIZE(x0)
@@ -144,8 +148,11 @@ class BaseModel(L.LightningModule):
         ce_loss = F.cross_entropy(student_logits_x0, y, label_smoothing=self.label_smoothing)
 
         if self.consistency_loss_type == "kd":
+            T = self.temperature
             def loss_fn(s_logits, t_logits):
-                return F.kl_div(F.log_softmax(s_logits, dim=-1), F.softmax(t_logits.detach(), dim=-1), reduction="batchmean")
+                s_log_probs = F.log_softmax(s_logits / T, dim=-1)
+                t_probs = F.softmax(t_logits.detach() / T, dim=-1)
+                return F.kl_div(s_log_probs, t_probs, reduction="batchmean") * (T * T)
         elif self.consistency_loss_type == "mse":
             def loss_fn(s_logits, t_logits):
                 return F.mse_loss(s_logits, t_logits.detach())
@@ -168,13 +175,12 @@ class BaseModel(L.LightningModule):
             teacher_probs = F.softmax(teacher_logits_x0, dim=-1)
             self.val_acc_student.update(student_probs, y)
             self.val_acc_teacher.update(teacher_probs, y)
-
             self.val_confmat_student.update(student_probs, y)
             self.val_confmat_teacher.update(teacher_probs, y)
 
             val_nll = F.nll_loss(teacher_probs.clamp_min(1e-8).log(), y)
             self.log("val/logloss", val_nll, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log("val_logloss", val_nll, logger=False)
+            self.log("val_logloss", val_nll, on_epoch=True, on_step=False, sync_dist=True, logger=False)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -251,27 +257,29 @@ class BaseModel(L.LightningModule):
         if self.scheduler == "none":
             return opt
 
+        if self.trainer is None:
+            raise RuntimeError("Trainer not attached")
+
+        total_steps = int(self.trainer.estimated_stepping_batches)
+        self.total_steps = total_steps
+        self.consistency_rampup_steps = int(self.consistency_rampup_steps * total_steps)
+
         if self.scheduler == "onecycle":
-            if self.trainer is None:
-                raise RuntimeError("Trainer not attached")
-
-            total_steps = int(self.trainer.estimated_stepping_batches)
-            self.total_steps = total_steps
-            self.consistency_rampup_steps = int(self.consistency_rampup_steps * total_steps)
-
             sched: LRScheduler = OneCycleLR(
                 opt,
                 max_lr=self.lr,
                 total_steps=max(1, total_steps),
-                # pct_start=0.1,
-                # div_factor=10.0,
-                # final_div_factor=100.0,
-                pct_start=0.25,
-                div_factor=25.0,
-                final_div_factor=100.0,
+                pct_start=0.1,
+                div_factor=10.0,
+                final_div_factor=500.0,
                 anneal_strategy="cos",
             )
+        elif self.scheduler == "warmup_cosine":
+            warmup_steps = int(self.warmup_pct * total_steps)
+            warmup = LinearLR(opt, start_factor=1e-3, total_iters=warmup_steps)
+            cosine = CosineAnnealingLR(opt, T_max=max(1, total_steps - warmup_steps), eta_min=1e-6)
+            sched = SequentialLR(opt, schedulers=[warmup, cosine], milestones=[warmup_steps])
+        else:
+            return opt
 
-            return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}
-
-        return opt
+        return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "interval": "step"}}

@@ -17,10 +17,11 @@ class DriverDataModule(L.LightningDataModule):
         pin_memory: bool,
         prefetch_factor: int,
         image_size: int,
-        flip_p: float,
+        flip_p: float = 0.0,
         validation_split: Optional[float] = None,
         num_folds: Optional[int] = None,
         fold_index: int = 0,
+        start_fold: int = 0,
         original_data_dir: Optional[str] = None,
         depth_data_dir: Optional[str] = None,
         csv_path: Optional[str] = None,
@@ -42,6 +43,7 @@ class DriverDataModule(L.LightningDataModule):
         self.validation_split = validation_split
         self.num_folds = num_folds
         self.fold_index = fold_index
+        self.start_fold = start_fold
 
         self.train_ds: Optional[DriverDataset] = None
         self.val_ds: Optional[DriverDataset] = None
