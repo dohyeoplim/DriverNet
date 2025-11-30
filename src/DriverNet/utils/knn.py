@@ -6,9 +6,6 @@ from typing import Tuple, List, Optional, Dict, Any
 from tqdm import tqdm
 import torch.nn.functional as F
 
-from src.DriverNet.models.base import BaseModel
-
-
 def build_knn_and_search(
     all_features: np.ndarray, test_features: np.ndarray, max_k: int
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -76,7 +73,7 @@ def get_feature_layer_name(model_name: str) -> str:
 
 
 def extract_features(
-    model: BaseModel, dataloader: torch.utils.data.DataLoader, device: torch.device
+    model, dataloader: torch.utils.data.DataLoader, device: torch.device
 ) -> Dict[str, Any]:
     model.eval()
     model.to(device)

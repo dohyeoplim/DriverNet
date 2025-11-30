@@ -10,12 +10,12 @@ trainer:
     strategy: "auto"
 
 model:
-    name: "resnet50_depthg"
+    name: "alexnet_depthg"
     num_classes: 10
     pretrained: true
     lr: 2e-4
     image_size: 384
-    weight_decay: 5e-2
+    weight_decay: 5e-3
     scheduler: "onecycle"
     # warmup_pct: 0.15
     label_smoothing: 0.1
@@ -23,7 +23,7 @@ model:
     # temperature: 4.0
     max_logit_norm: 10.0
     ema_decay: 0.999
-    ema_warmup_steps: 500
+    ema_warmup_steps: 400
     consistency_rampup_steps: 0.25
     final_consistency_weight: 1.0
 
@@ -37,10 +37,10 @@ data:
     persistent_workers: True
     prefetch_factor: 8
     image_size: 384
-    # validation_split: 0.2
-    num_folds: 3
-    fold_index: 0
-    start_fold: 0
+    validation_split: 0.2
+    # num_folds: 3
+    # fold_index: 0
+    # start_fold: 0
 
 data_test:
     predict_dir: "../input/original/test"
