@@ -37,8 +37,8 @@ uv run main.py --train-and-submit
 **Method 1**
 ### Depth Grouped Pooling (DGP)
 <img width="1920" height="1080" alt="5" src="https://github.com/user-attachments/assets/8e320429-7f52-42f1-850a-72ec7f6bc6b6" />
-<img width="1920" height="1080" alt="14" src="https://github.com/user-attachments/assets/05515209-153d-446c-a8f2-3f1f1b75ac59" />
 <img width="1920" height="1080" alt="13" src="https://github.com/user-attachments/assets/f80ace34-f85c-41a4-9254-4e7df6fc203d" />
+<img width="1920" height="1080" alt="14" src="https://github.com/user-attachments/assets/05515209-153d-446c-a8f2-3f1f1b75ac59" />
 
 <br />
 
